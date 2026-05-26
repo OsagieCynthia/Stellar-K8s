@@ -236,11 +236,12 @@ pub fn export_pdf(entries: &[AuditEntry]) -> Result<Vec<u8>> {
             current_page_y = 280.0;
         }
 
+        let action = format!("{:?}", entry.action);
         let line = format!(
             "[{}] {} | {} | {}/{} | {}",
             if entry.success { "OK" } else { "FAIL" },
             entry.timestamp.format("%Y-%m-%dT%H:%M:%SZ"),
-            format!("{:?}", entry.action),
+            action,
             entry.namespace,
             entry.resource,
             entry.actor,

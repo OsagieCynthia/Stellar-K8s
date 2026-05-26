@@ -278,7 +278,7 @@ async fn handle_websocket(
 
     if let Ok(msg_str) = serde_json::to_string(&handshake) {
         let _ = sender
-            .send(axum::extract::ws::Message::Text(msg_str.into()))
+            .send(axum::extract::ws::Message::Text(msg_str))
             .await;
     }
 
@@ -297,7 +297,7 @@ async fn handle_websocket(
             for message in messages {
                 if let Ok(msg_str) = serde_json::to_string(&message) {
                     if let Err(e) = sender
-                        .send(axum::extract::ws::Message::Text(msg_str.into()))
+                        .send(axum::extract::ws::Message::Text(msg_str))
                         .await
                     {
                         error!("Failed to send message: {}", e);
@@ -359,7 +359,7 @@ pub async fn sse_fallback_handler(
     State(streaming_state): State<Arc<StreamingState>>,
 ) -> impl IntoResponse {
     use axum::response::sse::{Event, Sse};
-    use futures::stream::{self, Stream};
+    
 
     let filter = parse_subscription_filter(&params);
 
@@ -389,6 +389,11 @@ pub async fn get_metrics_handler(
 ) -> Json<StreamingMetrics> {
     let metrics = streaming_state.get_metrics().await;
     Json(metrics)
+}
+
+// Use real uuid if available, otherwise use a simple generator
+fn generate_uuid() -> String {
+    format!("ws-{}", Utc::now().timestamp_nanos_opt().unwrap_or(0))
 }
 
 #[cfg(test)]
@@ -449,9 +454,4 @@ mod tests {
         let buffer_len = state.message_buffer.read().await.len();
         assert_eq!(buffer_len, 5); // Should not exceed max buffer size
     }
-}
-
-// Use real uuid if available, otherwise use a simple generator
-fn generate_uuid() -> String {
-    format!("ws-{}", Utc::now().timestamp_nanos_opt().unwrap_or(0))
 }

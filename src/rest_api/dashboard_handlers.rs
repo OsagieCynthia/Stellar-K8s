@@ -16,6 +16,11 @@ use crate::crd::{NodeType, StellarNetwork, StellarNode, StellarNodeSpec};
 use crate::rest_api::auth::RequestIdentity;
 
 use super::dashboard_dto::{
+    CapacityPlanningResponse, ConditionDisplay, ConfigDriftResponse, ConfigImpactResponse,
+    DRStatusResponse, DashboardOverview, LogAnalyticsResponse, LogPatternDto, MetricsSummary,
+    NetworkBreakdown, NodeAction, NodeActionRequest, NodeActionResponse, NodeConditionsResponse,
+    NodeLogsResponse, NodeTypeBreakdown, OperatorLogsResponse, SecurityPostureResponse,
+    WhatIfRequest,
     CapacityPlanningResponse, ConditionDisplay, ConfigImpactResponse, DashboardOverview,
     LogAnalyticsResponse, LogPatternDto, MetricsSummary, NetworkBreakdown, NodeAction,
     NodeActionRequest, NodeActionResponse, NodeConditionsResponse, NodeLogsResponse,
@@ -42,7 +47,8 @@ pub async fn get_dr_status(
                 namespace,
                 name,
                 dr_enabled: dr_config.map(|c| c.enabled).unwrap_or(false),
-                current_role: dr_status.and_then(|s| s.current_role.as_ref().map(|r| format!("{:?}", r))),
+                current_role: dr_status
+                    .and_then(|s| s.current_role.as_ref().map(|r| format!("{:?}", r))),
                 failover_active: dr_status.map(|s| s.failover_active).unwrap_or(false),
                 last_failover_time: dr_status.and_then(|s| s.last_failover_time.clone()),
                 sync_lag: dr_status.and_then(|s| s.sync_lag),
@@ -153,6 +159,37 @@ pub async fn run_what_if(
     Json(analyzer.analyze_scenario(&req.scenario_name, req.scale_factor))
 }
 
+/// Dashboard metrics summary for all nodes
+#[instrument(skip(state))]
+pub async fn dashboard_metrics(
+    State(state): State<Arc<ControllerState>>,
+) -> Result<Json<Vec<MetricsSummary>>, (StatusCode, Json<ErrorResponse>)> {
+    let api: Api<StellarNode> = Api::all(state.client.clone());
+
+    match api.list(&Default::default()).await {
+        Ok(nodes) => {
+            let summaries: Vec<MetricsSummary> = nodes
+                .items
+                .iter()
+                .map(|node| MetricsSummary {
+                    namespace: node.namespace().unwrap_or_else(|| "default".to_string()),
+                    name: node.name_any(),
+                    ledger_sequence: node.status.as_ref().and_then(|s| s.ledger_sequence),
+                    ready_replicas: node.status.as_ref().map(|s| s.ready_replicas).unwrap_or(0),
+                    replicas: node.spec.replicas,
+                    quorum_fragility: node.status.as_ref().and_then(|s| s.quorum_fragility),
+                })
+                .collect();
+            Ok(Json(summaries))
+        }
+        Err(e) => {
+            error!("Failed to list nodes for metrics: {:?}", e);
+            Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse::new("list_failed", &e.to_string())),
+            ))
+        }
+    }
 /// Get real-time traffic shaping dashboard metrics.
 pub async fn traffic_dashboard(
     State(_state): State<Arc<ControllerState>>,

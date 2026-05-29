@@ -208,5 +208,6 @@ pub use webhook_delivery::{
     DeliveryRecord, WebhookDeliveryService, WebhookEndpoint, WebhookEvent, WebhookEventType,
 };
 pub mod ml_pipeline;
-pub mod observability_pipeline;
 pub mod observability_dashboard;
+pub mod observability_pipeline;
+pub mod resource_optimization;

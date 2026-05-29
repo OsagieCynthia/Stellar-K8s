@@ -60,9 +60,10 @@ async fn fetch_dr_summary(args: &ExportComplianceArgs) -> Result<DRComplianceSum
         Error::ConfigError("No DisasterRecoveryPolicy found in namespace".to_string())
     })?;
 
-    let status = policy.status.as_ref().ok_or_else(|| {
-        Error::ConfigError("DisasterRecoveryPolicy has no status".to_string())
-    })?;
+    let status = policy
+        .status
+        .as_ref()
+        .ok_or_else(|| Error::ConfigError("DisasterRecoveryPolicy has no status".to_string()))?;
 
     Ok(DRComplianceSummary {
         last_rto_seconds: status.last_rto_seconds,

@@ -374,14 +374,14 @@ impl CrossRegionSyncController {
         // Build the live secret name from the staging name.
         let live_name = staging_secret_name.replace(STAGING_SECRET_PREFIX, LIVE_SECRET_PREFIX);
 
-        let mut live_data = data.clone();
+        let _live_data = data.clone();
         // Promote phase annotation.
         let mut live_secret = staging.clone();
         live_secret.metadata.name = Some(live_name.clone());
         if let Some(ann) = live_secret.metadata.annotations.as_mut() {
             ann.insert("stellar.org/sync-phase".to_string(), "live".to_string());
         }
-        live_secret.data = Some(live_data);
+        live_secret.data = Some(data.clone());
 
         secrets
             .patch(

@@ -41,9 +41,14 @@ pub async fn reconcile_dr(
 
     // Fetch DR Policy if referenced
     let policy = if let Some(policy_name) = &dr_config.policy_ref {
+        let ns = node.namespace().unwrap_or_else(|| "default".to_string());
         let policy_api: kube::Api<DisasterRecoveryPolicy> =
-            kube::Api::namespaced(client.clone(), node.namespace().unwrap_or_default());
-        policy_api.get_opt(policy_name).await.ok().flatten()
+            kube::Api::namespaced(client.clone(), &ns);
+        match policy_api.get(policy_name).await {
+            Ok(p) => Some(p),
+            Err(kube::Error::Api(e)) if e.code == 404 => None,
+            Err(e) => return Err(e.into()),
+        }
     } else {
         None
     };
@@ -111,7 +116,10 @@ pub async fn reconcile_dr(
 
         // Check health score if policy exists
         let health_score = calculate_health_score(node);
-        let min_score = policy.as_ref().map(|p| p.spec.min_health_score).unwrap_or(0);
+        let min_score = policy
+            .as_ref()
+            .map(|p| p.spec.min_health_score)
+            .unwrap_or(0);
 
         if health_score < min_score {
             warn!(
@@ -142,17 +150,19 @@ pub async fn reconcile_dr(
             // Measure RTO
             let rto = Utc::now().signed_duration_since(start_time).num_seconds() as u32;
             info!("Failover completed in {} seconds (RTO)", rto);
-            
+
             // Update policy status if possible
-            if let (Some(mut p), Some(policy_name)) = (policy, &dr_config.policy_ref) {
-                update_policy_compliance(
-                    client,
-                    &mut p,
-                    rto,
-                    policy_name,
-                    node.namespace().unwrap_or_default().as_str(),
-                )
-                .await?;
+            if let Some(policy_name) = &dr_config.policy_ref {
+                if let Some(mut p) = policy.clone() {
+                    update_policy_compliance(
+                        client,
+                        &mut p,
+                        rto,
+                        policy_name,
+                        node.namespace().unwrap_or_default().as_str(),
+                    )
+                    .await?;
+                }
             }
         }
     } else if dr_config.role == DRRole::Standby && primary_healthy && status.failover_active {
@@ -183,17 +193,19 @@ pub async fn reconcile_dr(
                     status.sync_lag = Some(p.saturating_sub(l));
 
                     // Measure RPO if policy exists
-                    if let (Some(mut policy), Some(policy_name)) = (policy, &dr_config.policy_ref) {
-                        // Assuming 5 seconds per ledger for RPO calculation
-                        let rpo = status.sync_lag.unwrap_or(0) * 5;
-                        update_policy_rpo(
-                            client,
-                            &mut policy,
-                            rpo as u32,
-                            policy_name,
-                            node.namespace().unwrap_or_default().as_str(),
-                        )
-                        .await?;
+                    if let Some(policy_name) = &dr_config.policy_ref {
+                        if let Some(mut p) = policy.clone() {
+                            // Assuming 5 seconds per ledger for RPO calculation
+                            let rpo = status.sync_lag.unwrap_or(0) * 5;
+                            update_policy_rpo(
+                                client,
+                                &mut p,
+                                rpo as u32,
+                                policy_name,
+                                node.namespace().unwrap_or_default().as_str(),
+                            )
+                            .await?;
+                        }
                     }
                 }
             }
@@ -211,9 +223,9 @@ pub async fn reconcile_dr(
 }
 
 fn calculate_health_score(node: &StellarNode) -> u32 {
-    let mut score = 100;
+    let mut score: u32 = 100;
     if let Some(status) = &node.status {
-        if !status.ready {
+        if !status.is_ready() {
             score -= 50;
         }
         // Deduct score for sync lag

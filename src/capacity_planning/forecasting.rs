@@ -120,6 +120,32 @@ impl Forecaster {
 
     fn holt_winters_forecast(
         &self,
+        history: &[ResourceUsage],
+        horizon_days: u32,
+    ) -> Vec<(DateTime<Utc>, f64)> {
+        if history.len() < 2 {
+            return Vec::new();
+        }
+
+        let values: Vec<f64> = history.iter().map(|h| h.cpu_cores).collect();
+        let alpha = 0.3;
+        let beta = 0.1;
+
+        let mut level = values[0];
+        let mut trend = values[1] - values[0];
+        for &obs in &values[2..] {
+            let prev_level = level;
+            level = alpha * obs + (1.0 - alpha) * (level + trend);
+            trend = beta * (level - prev_level) + (1.0 - beta) * trend;
+        }
+
+        let last_time = history.last().unwrap().timestamp;
+        (1..=horizon_days)
+            .map(|day| {
+                let predicted = (level + day as f64 * trend).max(0.0);
+                (last_time + Duration::days(day as i64), predicted)
+            })
+            .collect()
         _history: &[ResourceUsage],
         _horizon_days: u32,
     ) -> Vec<(DateTime<Utc>, f64)> {

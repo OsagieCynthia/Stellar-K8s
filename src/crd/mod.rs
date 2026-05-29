@@ -53,10 +53,13 @@ pub mod schema_utils;
 pub mod seed_secret;
 pub mod service_mesh;
 pub mod multi_region;
+pub mod dr_policy;
 pub mod federation;
 pub mod stellar_benchmark;
 mod stellar_node;
 pub mod types;
+pub mod tenant;
+
 
 #[cfg(test)]
 mod tests;
@@ -76,6 +79,10 @@ pub use stellar_benchmark::{
 pub use multi_region::{
     ClusterConfig, ClusterHealthStatus, FailoverPolicy, MultiRegionConfig, MultiRegionHealthCheck,
     MultiRegionSpec, MultiRegionStatus, SecretSyncConfig,
+};
+pub use dr_policy::{
+    ComplianceStatus, DisasterRecoveryPolicy, DisasterRecoveryPolicySpec,
+    DisasterRecoveryPolicyStatus,
 };
 pub use federation::{
     ClusterRegistry, ClusterRegistrySpec, ConflictResolutionStrategy, FederatedCluster,

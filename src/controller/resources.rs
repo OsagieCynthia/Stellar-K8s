@@ -114,7 +114,10 @@ fn apply_probe_override(
     base: Option<k8s_openapi::api::core::v1::Probe>,
     override_cfg: Option<&crate::crd::types::ProbeOverride>,
 ) -> Option<k8s_openapi::api::core::v1::Probe> {
-    let cfg = override_cfg?;
+    let cfg = match override_cfg {
+        Some(c) => c,
+        None => return base,
+    };
     let mut probe = base.unwrap_or_default();
     if let Some(v) = cfg.initial_delay_seconds {
         probe.initial_delay_seconds = Some(v);
@@ -1585,6 +1588,39 @@ fn build_ingress(node: &StellarNode, config: &IngressConfig) -> Ingress {
         }
     }
 
+    if let Some(rl) = &config.rate_limit {
+        if let Some(rps) = rl.requests_per_second {
+            annotations.insert(
+                "nginx.ingress.kubernetes.io/limit-rps".to_string(),
+                rps.to_string(),
+            );
+        }
+        if let Some(rpm) = rl.requests_per_minute {
+            annotations.insert(
+                "nginx.ingress.kubernetes.io/limit-rpm".to_string(),
+                rpm.to_string(),
+            );
+        }
+        if let Some(conns) = rl.connections {
+            annotations.insert(
+                "nginx.ingress.kubernetes.io/limit-connections".to_string(),
+                conns.to_string(),
+            );
+        }
+        if let Some(burst) = rl.burst_multiplier {
+            annotations.insert(
+                "nginx.ingress.kubernetes.io/limit-burst-multiplier".to_string(),
+                burst.to_string(),
+            );
+        }
+        if let Some(whitelist) = &rl.whitelist_cidrs {
+            annotations.insert(
+                "nginx.ingress.kubernetes.io/limit-whitelist".to_string(),
+                whitelist.clone(),
+            );
+        }
+    }
+
     let rules: Vec<IngressRule> = config
         .hosts
         .iter()
@@ -1733,7 +1769,8 @@ fn build_pod_template(
     // Add Horizon database migration init container
     if let NodeType::Horizon = node.spec.node_type {
         if let Some(horizon_config) = &node.spec.horizon_config {
-            let blue_green_migration = node.spec.strategy.strategy_type == RolloutStrategyType::BlueGreen;
+            let blue_green_migration =
+                node.spec.strategy.strategy_type == RolloutStrategyType::BlueGreen;
             if horizon_config.auto_migration && !blue_green_migration {
                 let init_containers = pod_spec.init_containers.get_or_insert_with(Vec::new);
                 init_containers.push(build_horizon_migration_container(node));
@@ -2016,6 +2053,16 @@ fn build_pod_template(
     // ==========================================================================
     if let Some(sidecars) = &node.spec.sidecars {
         pod_spec.containers.extend(sidecars.iter().cloned());
+    }
+
+    // ==========================================================================
+    // Append user-defined init containers after all operator-managed ones
+    // ==========================================================================
+    if let Some(user_init_containers) = &node.spec.init_containers {
+        pod_spec
+            .init_containers
+            .get_or_insert_with(Vec::new)
+            .extend(user_init_containers.iter().cloned());
     }
 
     // ==========================================================================
@@ -2367,9 +2414,7 @@ fn build_pod_template(
                 volumes.push(Volume {
                     name: "soroban-cache".to_string(),
                     empty_dir: Some(k8s_openapi::api::core::v1::EmptyDirVolumeSource {
-                        size_limit: Some(Quantity(
-                            format!("{}", cache_cfg.l2_max_bytes)
-                        )),
+                        size_limit: Some(Quantity(format!("{}", cache_cfg.l2_max_bytes))),
                         ..Default::default()
                     }),
                     ..Default::default()
@@ -3295,7 +3340,11 @@ fn build_hpa(node: &StellarNode) -> Result<HorizontalPodAutoscaler> {
                 ..Default::default()
             });
         } else {
-            warn!("Unrecognized custom metric '{}' configured for node {}; skipping.", metric_name, node.name_any());
+            warn!(
+                "Unrecognized custom metric '{}' configured for node {}; skipping.",
+                metric_name,
+                node.name_any()
+            );
         }
     }
 
@@ -3908,7 +3957,9 @@ pub(crate) fn build_network_policy(
         ports: None,
     };
 
-    let egress_rules = vec![same_network_egress, dns_egress, intra_namespace_egress];
+    egress_rules.push(same_network_egress);
+    egress_rules.push(dns_egress);
+    egress_rules.push(intra_namespace_egress);
 
     NetworkPolicy {
         metadata: merge_resource_meta(
@@ -4096,7 +4147,7 @@ pub(crate) fn build_service_for_test(node: &StellarNode) -> k8s_openapi::api::co
 
 #[cfg(test)]
 mod ensure_pvc_tests {
-    use super::{build_pvc, pvc_needs_update, resolve_pvc_storage_class};
+    use super::{build_hpa, build_pvc, pvc_needs_update, resolve_pvc_storage_class};
     use crate::crd::{
         types::{ResourceRequirements, ResourceSpec, StorageMode},
         NodeType, StellarNetwork, StellarNode, StellarNodeSpec,
@@ -4339,7 +4390,11 @@ mod ensure_pvc_tests {
 
         let metric_names: Vec<String> = metrics
             .iter()
-            .filter_map(|spec| spec.object.as_ref().map(|object| object.metric.name.clone()))
+            .filter_map(|spec| {
+                spec.object
+                    .as_ref()
+                    .map(|object| object.metric.name.clone())
+            })
             .collect();
 
         assert!(metric_names.contains(&"stellar_horizon_tps".to_string()));

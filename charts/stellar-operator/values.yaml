@@ -5,9 +5,11 @@ replicaCount: 1
 
 image:
   repository: ghcr.io/stellar/stellar-k8s
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion
   tag: ""
+  # Optional image digest (use repository@sha256:... to pin exact image)
+  digest: ""
 
 imagePullSecrets: []
 nameOverride: ""
@@ -247,7 +249,6 @@ defaultResources:
     limits:
       cpu: "4"
       memory: "8Gi"
-      
 
 # Feature flags — toggle operator capabilities at runtime without restart.
 featureFlags:
@@ -257,7 +258,6 @@ featureFlags:
   enablePeerDiscovery: true
   enableArchiveHealth: true
   enableSorobanMetrics: false
-
 
 security:
   audit:
@@ -292,6 +292,9 @@ security:
 #        kubectl label namespace stellar-testnet stellar.org/network=testnet
 #   2. Set networkIsolation.enabled=true and list the namespaces below.
 #   3. Helm upgrade.
+#
+# Ready-to-apply policy templates and testing guidance are documented in
+# docs/network-policy-templates.md.
 networkIsolation:
   # Master switch. Set to true to deploy namespace-level isolation policies.
   enabled: false
@@ -350,8 +353,8 @@ byzantineWatcher:
   # Container image for the watcher binary.
   # Defaults to the same image as the operator (stellar-watcher binary is included).
   image:
-    repository: ""   # defaults to .Values.image.repository
-    tag: ""          # defaults to .Values.image.tag / chart appVersion
+    repository: "" # defaults to .Values.image.repository
+    tag: "" # defaults to .Values.image.tag / chart appVersion
     pullPolicy: IfNotPresent
 
   # Default Stellar network for all watchers (can be overridden per region).
@@ -461,6 +464,17 @@ otel:
         enabled: false
         endpoint: "http://tempo:4317"
 
+      # Grafana Loki (Loki receiver/exporter)
+      loki:
+        enabled: false
+        endpoint: "http://loki:3100/loki/api/v1/push"
+
+      # Elasticsearch (Elasticsearch exporter)
+      elasticsearch:
+        enabled: false
+        endpoint: "http://elasticsearch:9200"
+        index: "stellar-logs"
+
 
 # SCP Analytics Pipeline Configuration
 # Real-time streaming of SCP messages to Kafka for network topology analysis
@@ -500,7 +514,7 @@ scpAnalytics:
     # SASL authentication (optional)
     sasl:
       enabled: false
-      mechanism: "PLAIN"  # PLAIN, SCRAM-SHA-256, SCRAM-SHA-512
+      mechanism: "PLAIN" # PLAIN, SCRAM-SHA-256, SCRAM-SHA-512
       username: ""
       password: ""
 

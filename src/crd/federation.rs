@@ -4,12 +4,7 @@ use serde::{Deserialize, Serialize};
 
 /// Registry of clusters in the federation
 #[derive(CustomResource, Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
-#[kube(
-    group = "stellar.org",
-    version = "v1alpha1",
-    kind = "ClusterRegistry",
-    cluster_scoped
-)]
+#[kube(group = "stellar.org", version = "v1alpha1", kind = "ClusterRegistry")]
 #[serde(rename_all = "camelCase")]
 pub struct ClusterRegistrySpec {
     pub clusters: Vec<FederatedCluster>,
@@ -26,7 +21,7 @@ pub struct FederatedCluster {
 }
 
 /// Federated StellarNode that spans multiple clusters
-#[derive(CustomResource, Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
+#[derive(CustomResource, Clone, Debug, Deserialize, Serialize, JsonSchema)]
 #[kube(
     group = "stellar.org",
     version = "v1alpha1",

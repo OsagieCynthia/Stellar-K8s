@@ -54,6 +54,8 @@ pub enum StellarMetricType {
     ActiveConnections,
     /// Horizon request queue length
     HorizonQueueLength,
+    /// Requests per second (alias for TPS)
+    RequestsPerSecond,
 }
 
 impl StellarMetricType {
@@ -61,7 +63,7 @@ impl StellarMetricType {
     ///
     /// Accepts both canonical names and convenient short aliases so that HPA
     /// manifests can use either `stellar_horizon_tps` or `transactions_per_second`.
-    pub fn from_str(name: &str) -> Option<Self> {
+    pub fn parse_metric_name(name: &str) -> Option<Self> {
         match name {
             // TPS — primary HPA metric for Horizon load scaling
             "stellar_horizon_tps" | "transactions_per_second" | "stellar_tps" => {
@@ -77,13 +79,11 @@ impl StellarMetricType {
             }
             // Ingestion lag
             "stellar_ingestion_lag" | "ingestion_lag" => Some(StellarMetricType::IngestionLag),
+            // Requests per second (alias for TPS via different naming convention)
+            "requests_per_second" => Some(StellarMetricType::RequestsPerSecond),
+            // Horizon-specific queue length
+            "horizon_queue_length" => Some(StellarMetricType::HorizonQueueLength),
             // Active connections
-            "stellar_horizon_tps" | "requests_per_second" => {
-                Some(StellarMetricType::RequestsPerSecond)
-            }
-            "stellar_queue_length" | "queue_length" | "horizon_queue_length" => {
-                Some(StellarMetricType::HorizonQueueLength)
-            }
             "stellar_active_connections" | "active_connections" => {
                 Some(StellarMetricType::ActiveConnections)
             }
@@ -118,6 +118,8 @@ impl StellarMetricType {
                 "Lag in ledgers between the network tip and this node"
             }
             StellarMetricType::ActiveConnections => "Number of active peer or client connections",
+            StellarMetricType::HorizonQueueLength => "Horizon-specific request queue depth",
+            StellarMetricType::RequestsPerSecond => "Requests per second handled by Horizon",
         }
     }
 
@@ -206,7 +208,7 @@ pub struct ApiError {
 }
 
 /// APIResource entry returned by the discovery endpoint.
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ApiResource {
     pub name: String,
@@ -217,7 +219,7 @@ pub struct ApiResource {
 }
 
 /// APIResourceList returned by `GET /apis/custom.metrics.k8s.io/v1beta2`.
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ApiResourceList {
     pub kind: String,
@@ -248,9 +250,23 @@ fn get_metric_value(
                 debug!("Fetching TPS from store for {}/{}", namespace, name);
                 store.tps(namespace, name)
             }
+            StellarMetricType::RequestsPerSecond => {
+                debug!(
+                    "Fetching requests_per_second from store for {}/{}",
+                    namespace, name
+                );
+                store.tps(namespace, name)
+            }
             StellarMetricType::QueueLength => {
                 debug!(
                     "Fetching queue_length from store for {}/{}",
+                    namespace, name
+                );
+                store.queue_length(namespace, name)
+            }
+            StellarMetricType::HorizonQueueLength => {
+                debug!(
+                    "Fetching horizon_queue_length from store for {}/{}",
                     namespace, name
                 );
                 store.queue_length(namespace, name)
@@ -387,7 +403,11 @@ pub async fn get_metrics_discovery() -> Response {
 /// The HPA uses this to scale Horizon Deployments based on per-pod metrics.
 /// Fetch a metric value from the Prometheus registry
 /// Returns the metric value as a string, or None if not found
-fn get_metric_value(metric_type: &StellarMetricType, namespace: &str, name: &str) -> Option<i64> {
+fn get_metric_from_registry(
+    metric_type: &StellarMetricType,
+    namespace: &str,
+    name: &str,
+) -> Option<i64> {
     let metric_name = metric_type.prometheus_name();
     let mut buffer = String::new();
     if encode(&mut buffer, &crate::controller::metrics::REGISTRY).is_err() {
@@ -395,7 +415,9 @@ fn get_metric_value(metric_type: &StellarMetricType, namespace: &str, name: &str
         return None;
     }
 
-    buffer.lines().find_map(|line| match_metric_line(line, metric_name, namespace, name))
+    buffer
+        .lines()
+        .find_map(|line| match_metric_line(line, metric_name, namespace, name))
 }
 
 fn match_metric_line(line: &str, metric_name: &str, namespace: &str, name: &str) -> Option<i64> {
@@ -429,7 +451,10 @@ fn extract_label(labels: &str, key: &str) -> Option<String> {
             continue;
         }
 
-        if let Some(stripped) = label_value.strip_prefix('"').and_then(|v| v.strip_suffix('"')) {
+        if let Some(stripped) = label_value
+            .strip_prefix('"')
+            .and_then(|v| v.strip_suffix('"'))
+        {
             return Some(stripped.replace("\\\"", "\""));
         }
 
@@ -440,10 +465,7 @@ fn extract_label(labels: &str, key: &str) -> Option<String> {
 
 fn parse_metric_value(value_str: &str) -> Option<i64> {
     let value_token = value_str.split_whitespace().next()?;
-    value_token
-        .parse::<f64>()
-        .ok()
-        .map(|value| value as i64)
+    value_token.parse::<f64>().ok().map(|value| value as i64)
 }
 
 /// Handler for custom metrics API: /apis/custom.metrics.k8s.io/v1beta2/namespaces/:namespace/pods/:name/:metric
@@ -460,7 +482,7 @@ pub async fn get_pod_metric(
         namespace, name, metric_name
     );
 
-    let metric_type = match StellarMetricType::from_str(&metric_name) {
+    let metric_type = match StellarMetricType::parse_metric_name(&metric_name) {
         Some(mt) => mt,
         None => {
             warn!(
@@ -501,7 +523,7 @@ pub async fn get_stellar_node_metric(
         namespace, name, metric_name
     );
 
-    let metric_type = match StellarMetricType::from_str(&metric_name) {
+    let metric_type = match StellarMetricType::parse_metric_name(&metric_name) {
         Some(mt) => mt,
         None => {
             warn!(
@@ -542,7 +564,7 @@ pub async fn get_horizon_metric(
         namespace, name, metric_name
     );
 
-    let metric_type = match StellarMetricType::from_str(&metric_name) {
+    let metric_type = match StellarMetricType::parse_metric_name(&metric_name) {
         Some(mt) => mt,
         None => {
             warn!(
@@ -574,20 +596,20 @@ pub async fn get_horizon_metric(
 mod tests {
     use super::*;
 
-    // ---- StellarMetricType::from_str ----------------------------------------
+    // ---- StellarMetricType::parse_metric_name ----------------------------------------
 
     #[test]
     fn test_tps_metric_type_aliases() {
         assert_eq!(
-            StellarMetricType::from_str("stellar_horizon_tps"),
+            StellarMetricType::parse_metric_name("stellar_horizon_tps"),
             Some(StellarMetricType::TransactionsPerSecond)
         );
         assert_eq!(
-            StellarMetricType::from_str("transactions_per_second"),
+            StellarMetricType::parse_metric_name("transactions_per_second"),
             Some(StellarMetricType::TransactionsPerSecond)
         );
         assert_eq!(
-            StellarMetricType::from_str("stellar_tps"),
+            StellarMetricType::parse_metric_name("stellar_tps"),
             Some(StellarMetricType::TransactionsPerSecond)
         );
     }
@@ -595,15 +617,15 @@ mod tests {
     #[test]
     fn test_queue_length_metric_type_aliases() {
         assert_eq!(
-            StellarMetricType::from_str("stellar_horizon_queue_length"),
+            StellarMetricType::parse_metric_name("stellar_horizon_queue_length"),
             Some(StellarMetricType::QueueLength)
         );
         assert_eq!(
-            StellarMetricType::from_str("queue_length"),
+            StellarMetricType::parse_metric_name("queue_length"),
             Some(StellarMetricType::QueueLength)
         );
         assert_eq!(
-            StellarMetricType::from_str("stellar_queue_length"),
+            StellarMetricType::parse_metric_name("stellar_queue_length"),
             Some(StellarMetricType::QueueLength)
         );
     }
@@ -611,11 +633,11 @@ mod tests {
     #[test]
     fn test_metric_type_from_str_ledger_sequence() {
         assert_eq!(
-            StellarMetricType::from_str("stellar_ledger_sequence"),
+            StellarMetricType::parse_metric_name("stellar_ledger_sequence"),
             Some(StellarMetricType::LedgerSequence)
         );
         assert_eq!(
-            StellarMetricType::from_str("ledger_sequence"),
+            StellarMetricType::parse_metric_name("ledger_sequence"),
             Some(StellarMetricType::LedgerSequence)
         );
     }
@@ -623,11 +645,11 @@ mod tests {
     #[test]
     fn test_metric_type_from_str_ingestion_lag() {
         assert_eq!(
-            StellarMetricType::from_str("stellar_ingestion_lag"),
+            StellarMetricType::parse_metric_name("stellar_ingestion_lag"),
             Some(StellarMetricType::IngestionLag)
         );
         assert_eq!(
-            StellarMetricType::from_str("ingestion_lag"),
+            StellarMetricType::parse_metric_name("ingestion_lag"),
             Some(StellarMetricType::IngestionLag)
         );
     }
@@ -635,20 +657,20 @@ mod tests {
     #[test]
     fn test_metric_type_from_str_active_connections() {
         assert_eq!(
-            StellarMetricType::from_str("stellar_active_connections"),
+            StellarMetricType::parse_metric_name("stellar_active_connections"),
             Some(StellarMetricType::ActiveConnections)
         );
         assert_eq!(
-            StellarMetricType::from_str("active_connections"),
+            StellarMetricType::parse_metric_name("active_connections"),
             Some(StellarMetricType::ActiveConnections)
         );
     }
 
     #[test]
     fn test_metric_type_from_str_unsupported() {
-        assert_eq!(StellarMetricType::from_str("unknown_metric"), None);
-        assert_eq!(StellarMetricType::from_str("cpu"), None);
-        assert_eq!(StellarMetricType::from_str(""), None);
+        assert_eq!(StellarMetricType::parse_metric_name("unknown_metric"), None);
+        assert_eq!(StellarMetricType::parse_metric_name("cpu"), None);
+        assert_eq!(StellarMetricType::parse_metric_name(""), None);
     }
 
     #[test]
@@ -779,7 +801,7 @@ mod tests {
             assert!(!name.is_empty());
             // Each canonical name must round-trip through from_str.
             assert!(
-                StellarMetricType::from_str(name).is_some(),
+                StellarMetricType::parse_metric_name(name).is_some(),
                 "Canonical name '{name}' did not round-trip"
             );
         }
@@ -816,7 +838,7 @@ mod tests {
             .set(123);
 
         assert_eq!(
-            get_metric_value(
+            get_metric_from_registry(
                 &StellarMetricType::RequestsPerSecond,
                 "test-ns",
                 "horizon-pod-0"
@@ -840,7 +862,11 @@ mod tests {
             .set(42);
 
         assert_eq!(
-            get_metric_value(&StellarMetricType::HorizonQueueLength, "test-ns", "horizon-pod-0"),
+            get_metric_from_registry(
+                &StellarMetricType::HorizonQueueLength,
+                "test-ns",
+                "horizon-pod-0"
+            ),
             Some(42)
         );
     }

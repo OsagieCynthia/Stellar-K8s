@@ -31,7 +31,8 @@ use tracing_subscriber::{fmt, prelude::*, EnvFilter};
         stellar-operator webhook --bind 0.0.0.0:8443 --cert-path /tls/tls.crt --key-path /tls/tls.key\n  \
         stellar-operator info --namespace stellar-system\n  \
         stellar-operator check-crd\n  \
-        stellar-operator version"
+        stellar-operator version\n  \
+        stellar-operator update-check"
 )]
 struct Args {
     #[command(subcommand)]
@@ -52,6 +53,8 @@ enum Commands {
     CheckCrd,
     /// Local simulator (kind/k3s + operator + demo validators)
     Simulator(SimulatorCli),
+    /// Check for a newer version of the operator on GitHub
+    UpdateCheck,
     /// Generate shell completion scripts
     Completions {
         /// Shell to generate completions for
@@ -314,6 +317,9 @@ async fn main() -> Result<(), Error> {
         Commands::Simulator(cli) => {
             return run_simulator(cli).await;
         }
+        Commands::UpdateCheck => {
+            return run_update_check().await;
+        }
         Commands::Completions { shell } => {
             use clap::CommandFactory;
             use clap_complete::generate;
@@ -323,6 +329,27 @@ async fn main() -> Result<(), Error> {
             return Ok(());
         }
     }
+}
+
+async fn run_update_check() -> Result<(), Error> {
+    use stellar_k8s::update_check::{check_for_update, print_update_result};
+
+    let local_version = env!("CARGO_PKG_VERSION");
+
+    match check_for_update(local_version).await {
+        Ok((release, status)) => {
+            print_update_result(local_version, &release, &status);
+        }
+        Err(e) => {
+            eprintln!("update-check failed: {e}");
+            eprintln!();
+            eprintln!("You can check for updates manually at:");
+            eprintln!("  https://github.com/stellar/stellar-k8s/releases");
+            std::process::exit(1);
+        }
+    }
+
+    Ok(())
 }
 
 async fn run_simulator(cli: SimulatorCli) -> Result<(), Error> {

@@ -109,6 +109,8 @@ enum Commands {
         /// The Stellar error code to explain (e.g., tx_bad_auth, op_no_destination)
         error_code: String,
     },
+    /// Check for a newer version of the operator or plugin on GitHub
+    UpdateCheck,
     /// Generate shell completion scripts
     Completions {
         /// Shell to generate completions for
@@ -235,6 +237,25 @@ async fn run(cli: Cli) -> Result<()> {
         Commands::Explain { error_code } => {
             explain::explain_error(&error_code);
             Ok(())
+        }
+        Commands::UpdateCheck => {
+            use stellar_k8s::update_check::{check_for_update, print_update_result};
+
+            let local_version = env!("CARGO_PKG_VERSION");
+
+            match check_for_update(local_version).await {
+                Ok((release, status)) => {
+                    print_update_result(local_version, &release, &status);
+                    Ok(())
+                }
+                Err(e) => {
+                    eprintln!("update-check failed: {e}");
+                    eprintln!();
+                    eprintln!("You can check for updates manually at:");
+                    eprintln!("  https://github.com/stellar/stellar-k8s/releases");
+                    Err(Error::NetworkError(e))
+                }
+            }
         }
         Commands::Completions { shell } => {
             use clap::CommandFactory;

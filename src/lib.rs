@@ -12,6 +12,7 @@ pub mod infra;
 pub mod preflight;
 pub mod scheduler;
 pub mod telemetry;
+pub mod update_check;
 
 #[cfg(feature = "rest-api")]
 pub mod rest_api;

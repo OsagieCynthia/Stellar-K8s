@@ -11,8 +11,8 @@ mod tests {
 
     use crate::controller::resources::build_topology_spread_constraints;
     use crate::crd::{
-        types::{HorizonConfig, PodAntiAffinityStrength, ResourceRequirements, ResourceSpec},
         NodeType, StellarNetwork, StellarNodeSpec,
+        types::{HorizonConfig, PodAntiAffinityStrength, ResourceRequirements, ResourceSpec},
     };
 
     // -----------------------------------------------------------------------
@@ -320,8 +320,8 @@ mod tests {
         build_pvc_for_test, build_service_for_test, build_statefulset_for_test,
         merge_workload_affinity, owner_reference, standard_labels,
     };
-    use crate::crd::types::ValidatorConfig;
     use crate::crd::StellarNode;
+    use crate::crd::types::ValidatorConfig;
     use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 
     #[test]
@@ -798,16 +798,18 @@ peer-2 = "G..."
         let netpol = build_network_policy(&node, &config);
         let spec = netpol.spec.expect("spec must be present");
 
-        assert!(spec
-            .policy_types
-            .as_ref()
-            .unwrap()
-            .contains(&"Ingress".to_string()));
-        assert!(spec
-            .policy_types
-            .as_ref()
-            .unwrap()
-            .contains(&"Egress".to_string()));
+        assert!(
+            spec.policy_types
+                .as_ref()
+                .unwrap()
+                .contains(&"Ingress".to_string())
+        );
+        assert!(
+            spec.policy_types
+                .as_ref()
+                .unwrap()
+                .contains(&"Egress".to_string())
+        );
 
         let egress = spec.egress.expect("egress rules must be present");
 
@@ -949,8 +951,8 @@ mod init_containers_tests {
 
     use crate::controller::resources::{build_deployment_for_test, build_statefulset_for_test};
     use crate::crd::{
-        types::{ResourceRequirements, ResourceSpec, ValidatorConfig},
         NodeType, StellarNetwork, StellarNodeSpec,
+        types::{ResourceRequirements, ResourceSpec, ValidatorConfig},
     };
 
     fn make_node(
@@ -994,7 +996,11 @@ mod init_containers_tests {
         Container {
             name: name.to_string(),
             image: Some("busybox:latest".to_string()),
-            command: Some(vec!["sh".to_string(), "-c".to_string(), "echo hello".to_string()]),
+            command: Some(vec![
+                "sh".to_string(),
+                "-c".to_string(),
+                "echo hello".to_string(),
+            ]),
             ..Default::default()
         }
     }
@@ -1215,11 +1221,117 @@ mod init_containers_tests {
             .iter()
             .position(|c| c.name == "my-custom-init");
 
-        assert!(pos_migration.is_some(), "operator migration init container must be present");
+        assert!(
+            pos_migration.is_some(),
+            "operator migration init container must be present"
+        );
         assert!(pos_custom.is_some(), "user init container must be present");
         assert!(
             pos_migration < pos_custom,
             "operator-managed init containers must come before user-defined ones"
         );
+    }
+}
+
+// -----------------------------------------------------------------------
+// diagnostic sidecar resource tests
+// -----------------------------------------------------------------------
+
+#[cfg(test)]
+mod diagnostic_sidecar_resource_tests {
+    use k8s_openapi::api::core::v1::Container;
+
+    use crate::controller::resources::{build_deployment_for_test, build_statefulset_for_test};
+    use crate::crd::{
+        NodeType, StellarNetwork, StellarNode, StellarNodeSpec,
+        types::{ResourceRequirements, ResourceSpec, ValidatorConfig},
+    };
+
+    fn make_node(node_type: NodeType) -> StellarNode {
+        let spec = StellarNodeSpec {
+            node_type: node_type.clone(),
+            network: StellarNetwork::Testnet,
+            version: "v21.0.0".to_string(),
+            resources: ResourceRequirements {
+                requests: ResourceSpec {
+                    cpu: "500m".to_string(),
+                    memory: "1Gi".to_string(),
+                },
+                limits: ResourceSpec {
+                    cpu: "2".to_string(),
+                    memory: "4Gi".to_string(),
+                },
+            },
+            replicas: 1,
+            validator_config: if node_type == NodeType::Validator {
+                Some(ValidatorConfig {
+                    seed_secret_ref: "my-seed".to_string(),
+                    ..Default::default()
+                })
+            } else {
+                None
+            },
+            ..Default::default()
+        };
+
+        let mut node = StellarNode::new("test-node", spec);
+        node.metadata.namespace = Some("default".to_string());
+        node
+    }
+
+    fn health_sidecar(containers: &[Container]) -> &Container {
+        containers
+            .iter()
+            .find(|container| container.name == "stellar-health-check")
+            .expect("diagnostic sidecar must be present")
+    }
+
+    #[test]
+    fn applies_default_diagnostic_sidecar_resources_to_statefulset() {
+        let node = make_node(NodeType::Validator);
+        let sts = build_statefulset_for_test(&node);
+        let pod_spec = sts.spec.unwrap().template.spec.unwrap();
+        let resources = health_sidecar(&pod_spec.containers)
+            .resources
+            .as_ref()
+            .expect("diagnostic sidecar resources must be set");
+
+        let requests = resources.requests.as_ref().expect("requests must be set");
+        let limits = resources.limits.as_ref().expect("limits must be set");
+
+        assert_eq!(requests.get("cpu").unwrap().0, "50m");
+        assert_eq!(requests.get("memory").unwrap().0, "64Mi");
+        assert_eq!(limits.get("cpu").unwrap().0, "50m");
+        assert_eq!(limits.get("memory").unwrap().0, "64Mi");
+    }
+
+    #[test]
+    fn applies_crd_override_diagnostic_sidecar_resources_to_deployment() {
+        let mut node = make_node(NodeType::Horizon);
+        node.spec.diagnostic_sidecar_resources = Some(ResourceRequirements {
+            requests: ResourceSpec {
+                cpu: "75m".to_string(),
+                memory: "96Mi".to_string(),
+            },
+            limits: ResourceSpec {
+                cpu: "150m".to_string(),
+                memory: "128Mi".to_string(),
+            },
+        });
+
+        let deployment = build_deployment_for_test(&node);
+        let pod_spec = deployment.spec.unwrap().template.spec.unwrap();
+        let resources = health_sidecar(&pod_spec.containers)
+            .resources
+            .as_ref()
+            .expect("diagnostic sidecar resources must be set");
+
+        let requests = resources.requests.as_ref().expect("requests must be set");
+        let limits = resources.limits.as_ref().expect("limits must be set");
+
+        assert_eq!(requests.get("cpu").unwrap().0, "75m");
+        assert_eq!(requests.get("memory").unwrap().0, "96Mi");
+        assert_eq!(limits.get("cpu").unwrap().0, "150m");
+        assert_eq!(limits.get("memory").unwrap().0, "128Mi");
     }
 }

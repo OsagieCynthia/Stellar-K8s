@@ -59,6 +59,7 @@ pub mod service_mesh;
 pub mod stellar_autoscaler;
 pub mod stellar_benchmark;
 pub mod stellar_federation;
+pub mod stellar_network_policy;
 pub mod stellar_observability;
 pub mod stellar_performance;
 pub mod stellar_topology;
@@ -103,6 +104,14 @@ pub use stellar_benchmark::{
 pub use stellar_federation::{
     FederationCluster, ReplicationConfig, ReplicationMode, RoutingStrategy,
     StellarFederation, StellarFederationSpec, StellarFederationStatus, TrafficRoutingPolicy,
+};
+pub use stellar_network_policy::{
+    AllowedDestination, Condition, DNSRule, EgressRule, GRPCRule, HeaderMatch, HTTPRule,
+    IngressRule, IPBlock, L7Rule, LabelSelector, LabelSelectorRequirement, MetadataMatch,
+    NetworkPolicyPeer, NetworkPolicyPort, SegmentSelector, StellarNetworkPolicy,
+    StellarNetworkPolicySpec, StellarNetworkPolicyStatus, StellarNetworkSegment,
+    StellarNetworkSegmentSpec, StellarNetworkSegmentStatus, StellarWorkloadProfile,
+    StellarWorkloadProfileSpec, TLSRule, WorkloadIdentity,
 };
 pub use stellar_autoscaler::{
     CanaryStrategy, CostAwareConfig, MetricType, PredictionModel, PredictiveScalingConfig,

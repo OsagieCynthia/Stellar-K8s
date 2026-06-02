@@ -20,17 +20,21 @@ pub mod ratelimit;
 pub mod router;
 pub mod transform;
 
-pub use analytics::{Analytics, ApiCall, GatewayMetrics, TimeWindowMetrics, ApiHealth, HealthStatus};
-pub use auth::{AuthConfig, AuthMiddleware, AuthProvider, JwtAuth, OAuth2Auth, ApiKeyAuth, AuthContext, AuthError};
-pub use plugin::{GatewayPlugin, PluginContext, PluginHook, PluginManager};
-pub use ratelimit::{RateLimitConfig, RateLimiter, QuotaManager, QuotaConfig, QuotaTier};
-pub use router::{RouteRule, RouterConfig, VersionedRouter, ApiVersion};
-pub use transform::{TransformPipeline, TransformRule, BodyTransform};
-pub use openapi::{OpenApiDocument, OpenApiGenerator, ApiRoute, get_default_routes};
-pub use handlers::{GatewayStateWrapper, gateway_routes};
+pub use analytics::{
+    Analytics, ApiCall, ApiHealth, GatewayMetrics, HealthStatus, TimeWindowMetrics,
+};
+pub use auth::{
+    ApiKeyAuth, AuthConfig, AuthContext, AuthError, AuthMiddleware, AuthProvider, JwtAuth,
+    OAuth2Auth,
+};
 pub use developer_portal::DEVELOPER_PORTAL_HTML;
+pub use handlers::{gateway_routes, GatewayStateWrapper};
+pub use openapi::{get_default_routes, ApiRoute, OpenApiDocument, OpenApiGenerator};
+pub use plugin::{GatewayPlugin, PluginContext, PluginHook, PluginManager};
+pub use ratelimit::{QuotaConfig, QuotaManager, QuotaTier, RateLimitConfig, RateLimiter};
+pub use router::{ApiVersion, RouteRule, RouterConfig, VersionedRouter};
+pub use transform::{BodyTransform, TransformPipeline, TransformRule};
 
-use std::sync::Arc;
 use axum::{
     body::Body,
     extract::{Request, State},
@@ -39,6 +43,7 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
+use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use crate::controller::ControllerState;
@@ -85,7 +90,13 @@ pub async fn gateway_handler(
     // 1. Authentication
     let auth_result = state.auth.authenticate(&request).await;
     if let Err(e) = auth_result {
-        return error_response(e.status, e.code, e.message);
+        let status = match &e {
+            auth::AuthError::TokenExpired | auth::AuthError::InvalidToken(_) => StatusCode::UNAUTHORIZED,
+            auth::AuthError::MissingAuth => StatusCode::UNAUTHORIZED,
+            auth::AuthError::ApiKeyNotFound | auth::AuthError::ApiKeyDisabled => StatusCode::FORBIDDEN,
+            auth::AuthError::UnsupportedProvider(_) => StatusCode::BAD_REQUEST,
+        };
+        return error_response(status, "auth_error", &e.to_string());
     }
     let auth_context = auth_result.unwrap();
 
@@ -120,7 +131,10 @@ pub async fn gateway_handler(
     }
 
     // 5. Request Transformation
-    let transformed = state.transform_pipeline.transform_request(ctx.request).await;
+    let transformed = state
+        .transform_pipeline
+        .transform_request(ctx.request)
+        .await;
 
     // 6. Route to correct version
     let routed = state.router.route(&transformed).await;
@@ -148,7 +162,10 @@ pub async fn gateway_handler(
     state.analytics.write().await.record_call(call);
 
     // 11. Update quota
-    state.quota_manager.record_request(&auth_context.client_id).await;
+    state
+        .quota_manager
+        .record_request(&auth_context.client_id)
+        .await;
 
     final_response
 }

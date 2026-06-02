@@ -154,7 +154,13 @@ mod tests {
     use crate::event_processing::schema::EventSource;
 
     fn ev(t: &str) -> ProcessingEvent {
-        ProcessingEvent::new(t, EventSource::Controller, "agg", "ns", serde_json::json!({}))
+        ProcessingEvent::new(
+            t,
+            EventSource::Controller,
+            "agg",
+            "ns",
+            serde_json::json!({}),
+        )
     }
 
     #[tokio::test]
@@ -178,7 +184,10 @@ mod tests {
             )
             .await;
 
-        assert_eq!(replayed, vec!["stellar.node.created", "stellar.node.deleted"]);
+        assert_eq!(
+            replayed,
+            vec!["stellar.node.created", "stellar.node.deleted"]
+        );
     }
 
     #[tokio::test]

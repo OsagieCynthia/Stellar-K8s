@@ -319,6 +319,9 @@ fn test_non_leader_metrics_and_health_available() {
 
     // Count should remain 1 (from non-leader phase)
     assert_eq!(metrics_served.load(Ordering::SeqCst), 1);
+    assert_eq!(health_checks_served.load(Ordering::SeqCst), 1);
+}
+
 /// #705 — Standby takes over and reconciles after leader is killed.
 ///
 /// Simulates a two-replica scenario: replica A holds the lease, then "dies"
@@ -337,7 +340,11 @@ fn test_standby_takes_over_after_leader_dies() {
     if replica_a_is_leader.load(Ordering::SeqCst) {
         reconcile_count.fetch_add(1, Ordering::SeqCst);
     }
-    assert_eq!(reconcile_count.load(Ordering::SeqCst), 1, "leader A reconciled");
+    assert_eq!(
+        reconcile_count.load(Ordering::SeqCst),
+        1,
+        "leader A reconciled"
+    );
 
     // Simulate leader A dying: lease expires, B acquires leadership.
     replica_a_is_leader.store(false, Ordering::SeqCst);
@@ -351,7 +358,11 @@ fn test_standby_takes_over_after_leader_dies() {
     if replica_b_is_leader.load(Ordering::SeqCst) {
         reconcile_count.fetch_add(1, Ordering::SeqCst);
     }
-    assert_eq!(reconcile_count.load(Ordering::SeqCst), 2, "standby B reconciled after takeover");
+    assert_eq!(
+        reconcile_count.load(Ordering::SeqCst),
+        2,
+        "standby B reconciled after takeover"
+    );
 }
 
 /// #705 — Non-leader replica must not reconcile while leader is alive.
@@ -368,5 +379,9 @@ fn test_standby_does_not_reconcile_while_leader_alive() {
         reconcile_count.fetch_add(1, Ordering::SeqCst);
     }
 
-    assert_eq!(reconcile_count.load(Ordering::SeqCst), 0, "standby must not reconcile");
+    assert_eq!(
+        reconcile_count.load(Ordering::SeqCst),
+        0,
+        "standby must not reconcile"
+    );
 }

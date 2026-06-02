@@ -150,7 +150,10 @@ mod tests {
     fn healthy_sample_is_within_budget() {
         let results = evaluate_budgets(&sample(120.0, 150.0, 0.2), &budgets());
         assert!(all_within_budget(&results));
-        assert_eq!(derive_phase(&results, false), PerformancePhase::WithinBudget);
+        assert_eq!(
+            derive_phase(&results, false),
+            PerformancePhase::WithinBudget
+        );
     }
 
     #[test]
@@ -216,7 +219,11 @@ mod tests {
         let base = sample(100.0, 150.0, 0.2);
         // +5% latency, -5% throughput — both under the 10% policy.
         let now = sample(105.0, 142.5, 0.2);
-        assert!(!detect_regression(&now, &base, &RegressionPolicy::default()));
+        assert!(!detect_regression(
+            &now,
+            &base,
+            &RegressionPolicy::default()
+        ));
     }
 
     #[test]

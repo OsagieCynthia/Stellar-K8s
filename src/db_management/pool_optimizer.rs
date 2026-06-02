@@ -58,24 +58,45 @@ impl PoolOptimizer {
         .await
         .map_err(crate::error::Error::SqlxError)?;
 
-        let (max_conn,): (i64,) =
-            sqlx::query_as("SELECT setting::bigint FROM pg_settings WHERE name = 'max_connections'")
-                .fetch_one(pool)
-                .await
-                .map_err(crate::error::Error::SqlxError)?;
+        let (max_conn,): (i64,) = sqlx::query_as(
+            "SELECT setting::bigint FROM pg_settings WHERE name = 'max_connections'",
+        )
+        .fetch_one(pool)
+        .await
+        .map_err(crate::error::Error::SqlxError)?;
 
-        let utilization = if max_conn == 0 { 0.0 } else { total as f64 / max_conn as f64 * 100.0 };
+        let utilization = if max_conn == 0 {
+            0.0
+        } else {
+            total as f64 / max_conn as f64 * 100.0
+        };
 
-        let stats = PoolStats { total_connections: total, active, idle, waiting, max_connections: max_conn, utilization_pct: utilization };
+        let stats = PoolStats {
+            total_connections: total,
+            active,
+            idle,
+            waiting,
+            max_connections: max_conn,
+            utilization_pct: utilization,
+        };
 
         let mut alerts = vec![];
         if utilization > 80.0 {
-            alerts.push(DbAlert::critical("pool_optimizer", format!("Connection utilization at {utilization:.1}%")));
+            alerts.push(DbAlert::critical(
+                "pool_optimizer",
+                format!("Connection utilization at {utilization:.1}%"),
+            ));
         } else if utilization > 60.0 {
-            alerts.push(DbAlert::warn("pool_optimizer", format!("Connection utilization at {utilization:.1}%")));
+            alerts.push(DbAlert::warn(
+                "pool_optimizer",
+                format!("Connection utilization at {utilization:.1}%"),
+            ));
         }
         if waiting > 0 {
-            alerts.push(DbAlert::warn("pool_optimizer", format!("{waiting} connections waiting on locks")));
+            alerts.push(DbAlert::warn(
+                "pool_optimizer",
+                format!("{waiting} connections waiting on locks"),
+            ));
         }
 
         // Recommend pool size: target ~70% utilization headroom
@@ -91,7 +112,12 @@ impl PoolOptimizer {
         };
 
         info!("pool analysis: {total} total, {active} active, {idle} idle, {waiting} waiting");
-        Ok(PoolReport { analyzed_at: Utc::now(), stats, recommendation, alerts })
+        Ok(PoolReport {
+            analyzed_at: Utc::now(),
+            stats,
+            recommendation,
+            alerts,
+        })
     }
 }
 
@@ -101,7 +127,14 @@ mod tests {
 
     #[test]
     fn utilization_calc() {
-        let stats = PoolStats { total_connections: 80, active: 40, idle: 40, waiting: 0, max_connections: 100, utilization_pct: 80.0 };
+        let stats = PoolStats {
+            total_connections: 80,
+            active: 40,
+            idle: 40,
+            waiting: 0,
+            max_connections: 100,
+            utilization_pct: 80.0,
+        };
         assert_eq!(stats.utilization_pct, 80.0);
     }
 }

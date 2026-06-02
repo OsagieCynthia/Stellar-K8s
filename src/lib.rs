@@ -65,10 +65,7 @@
 
 pub mod api_gateway;
 pub mod backup;
-pub mod data_pipeline;
 pub mod benchmark_compare;
-pub mod db_management;
-pub mod event_processing;
 pub mod byzantine;
 pub mod canary_deployment;
 pub mod capacity_planning;
@@ -78,8 +75,11 @@ pub mod config_mgmt;
 pub mod consensus_monitoring;
 pub mod controller;
 pub mod crd;
+pub mod data_pipeline;
+pub mod db_management;
 pub mod deployment_strategy;
 pub mod error;
+pub mod event_processing;
 pub mod fork_detector;
 pub mod incident;
 pub mod infra;

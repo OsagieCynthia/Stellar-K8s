@@ -92,15 +92,8 @@ fn parse_memory_bytes(q: &Quantity) -> Option<f64> {
 /// If any quota would be exceeded the returned `QuotaCheckResult` has
 /// `allowed = false` with a descriptive `message` suitable for a Kubernetes
 /// Condition.
-pub async fn check_quota(
-    client: &Client,
-    node: &StellarNode,
-) -> Result<QuotaCheckResult> {
-    let namespace = node
-        .metadata
-        .namespace
-        .as_deref()
-        .unwrap_or("default");
+pub async fn check_quota(client: &Client, node: &StellarNode) -> Result<QuotaCheckResult> {
+    let namespace = node.metadata.namespace.as_deref().unwrap_or("default");
 
     let quota_api: Api<ResourceQuota> = Api::namespaced(client.clone(), namespace);
     let quotas = quota_api
@@ -121,35 +114,19 @@ pub async fn check_quota(
     }
 
     // Derive requested resources from the spec
-    let req_cpu_m = parse_cpu_millis(
-        node.spec
-            .resources
-            .requests
-            .get("cpu")
-            .unwrap_or(&Quantity("100m".to_string())),
-    )
-    .unwrap_or(100.0)
+    let req_cpu_m = parse_cpu_millis(&Quantity(node.spec.resources.requests.cpu.clone()))
+        .unwrap_or(100.0)
         * node.spec.replicas as f64;
 
-    let req_mem_bytes = parse_memory_bytes(
-        node.spec
-            .resources
-            .requests
-            .get("memory")
-            .unwrap_or(&Quantity("256Mi".to_string())),
-    )
-    .unwrap_or(268_435_456.0)
+    let req_mem_bytes = parse_memory_bytes(&Quantity(node.spec.resources.requests.memory.clone()))
+        .unwrap_or(268_435_456.0)
         * node.spec.replicas as f64;
 
     let mut utilisation = Vec::new();
     let mut violations: Vec<String> = Vec::new();
 
     for quota in &quotas.items {
-        let quota_name = quota
-            .metadata
-            .name
-            .as_deref()
-            .unwrap_or("unknown");
+        let quota_name = quota.metadata.name.as_deref().unwrap_or("unknown");
 
         let hard = quota.spec.as_ref().map(|s| &s.hard);
         let used_map = quota.status.as_ref().and_then(|s| s.used.as_ref());
@@ -263,15 +240,8 @@ pub async fn check_quota(
 /// Check that the node's resource requests/limits comply with namespace LimitRange.
 ///
 /// Returns a list of violation messages. Empty means compliant.
-pub async fn check_limit_range(
-    client: &Client,
-    node: &StellarNode,
-) -> Result<Vec<String>> {
-    let namespace = node
-        .metadata
-        .namespace
-        .as_deref()
-        .unwrap_or("default");
+pub async fn check_limit_range(client: &Client, node: &StellarNode) -> Result<Vec<String>> {
+    let namespace = node.metadata.namespace.as_deref().unwrap_or("default");
 
     let lr_api: Api<LimitRange> = Api::namespaced(client.clone(), namespace);
     let limit_ranges = lr_api
@@ -431,8 +401,8 @@ mod tests {
         let u = QuotaUtilisation {
             quota_name: "default-quota".to_string(),
             resource: "requests.memory".to_string(),
-            hard: 4_294_967_296.0, // 4 Gi
-            used: 1_073_741_824.0, // 1 Gi
+            hard: 4_294_967_296.0,    // 4 Gi
+            used: 1_073_741_824.0,    // 1 Gi
             requested: 268_435_456.0, // 256 Mi
         };
         assert!(u.used + u.requested <= u.hard);

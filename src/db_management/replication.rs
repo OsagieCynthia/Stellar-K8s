@@ -45,9 +45,16 @@ impl ReplicationMonitor {
         let mut alerts = vec![];
 
         let replicas = if is_primary {
-            let rows: Vec<(String, String, String, Option<f64>, Option<f64>, Option<f64>, String)> =
-                sqlx::query_as(
-                    r#"SELECT application_name,
+            let rows: Vec<(
+                String,
+                String,
+                String,
+                Option<f64>,
+                Option<f64>,
+                Option<f64>,
+                String,
+            )> = sqlx::query_as(
+                r#"SELECT application_name,
                               coalesce(client_addr::text, 'local'),
                               state,
                               EXTRACT(EPOCH FROM write_lag)  * 1000,
@@ -55,10 +62,10 @@ impl ReplicationMonitor {
                               EXTRACT(EPOCH FROM replay_lag) * 1000,
                               sync_state
                        FROM pg_stat_replication"#,
-                )
-                .fetch_all(pool)
-                .await
-                .map_err(crate::error::Error::SqlxError)?;
+            )
+            .fetch_all(pool)
+            .await
+            .map_err(crate::error::Error::SqlxError)?;
 
             rows.into_iter()
                 .map(|(app, addr, state, wl, fl, rl, sync)| {
@@ -89,12 +96,23 @@ impl ReplicationMonitor {
                 .collect()
         } else {
             warn!("replication monitor: this node is a replica");
-            alerts.push(DbAlert::warn("replication", "Connected to a replica, not primary"));
+            alerts.push(DbAlert::warn(
+                "replication",
+                "Connected to a replica, not primary",
+            ));
             vec![]
         };
 
-        info!("replication: primary={is_primary}, replicas={}", replicas.len());
-        Ok(ReplicationReport { analyzed_at: Utc::now(), is_primary, replicas, alerts })
+        info!(
+            "replication: primary={is_primary}, replicas={}",
+            replicas.len()
+        );
+        Ok(ReplicationReport {
+            analyzed_at: Utc::now(),
+            is_primary,
+            replicas,
+            alerts,
+        })
     }
 }
 

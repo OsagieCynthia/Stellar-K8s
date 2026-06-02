@@ -98,7 +98,10 @@ impl IndexManager {
         if !unused_idxs.is_empty() {
             alerts.push(DbAlert::warn(
                 "index_manager",
-                format!("{} unused indexes found (wasting write overhead)", unused_idxs.len()),
+                format!(
+                    "{} unused indexes found (wasting write overhead)",
+                    unused_idxs.len()
+                ),
             ));
         }
 
@@ -123,14 +126,9 @@ impl IndexManager {
         columns: &[&str],
     ) -> crate::error::Result<String> {
         let col_list = columns.join(", ");
-        let idx_name = format!(
-            "idx_auto_{}_{}",
-            table.replace('.', "_"),
-            columns.join("_")
-        );
-        let ddl = format!(
-            "CREATE INDEX CONCURRENTLY IF NOT EXISTS {idx_name} ON {table} ({col_list})"
-        );
+        let idx_name = format!("idx_auto_{}_{}", table.replace('.', "_"), columns.join("_"));
+        let ddl =
+            format!("CREATE INDEX CONCURRENTLY IF NOT EXISTS {idx_name} ON {table} ({col_list})");
         info!("creating index: {ddl}");
         sqlx::query(&ddl)
             .execute(pool)

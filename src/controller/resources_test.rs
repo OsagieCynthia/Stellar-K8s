@@ -6,13 +6,15 @@
 mod tests {
     use std::collections::BTreeMap;
 
-    use k8s_openapi::api::core::v1::{ConfigMapVolumeSource, Volume, VolumeMount, TopologySpreadConstraint};
+    use k8s_openapi::api::core::v1::{
+        ConfigMapVolumeSource, TopologySpreadConstraint, Volume, VolumeMount,
+    };
     use k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector;
 
     use crate::controller::resources::build_topology_spread_constraints;
     use crate::crd::{
-        NodeType, StellarNetwork, StellarNodeSpec,
         types::{HorizonConfig, PodAntiAffinityStrength, ResourceRequirements, ResourceSpec},
+        NodeType, StellarNetwork, StellarNodeSpec,
     };
 
     // -----------------------------------------------------------------------
@@ -392,8 +394,8 @@ mod tests {
         build_pvc_for_test, build_service_for_test, build_statefulset_for_test,
         merge_workload_affinity, owner_reference, standard_labels,
     };
-    use crate::crd::StellarNode;
     use crate::crd::types::ValidatorConfig;
+    use crate::crd::StellarNode;
     use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 
     #[test]
@@ -610,19 +612,33 @@ peer-2 = "G..."
         let mut node = make_node(NodeType::Horizon);
         node.spec.service_labels = Some(BTreeMap::from([
             ("team".to_string(), "infra".to_string()),
-            ("app.kubernetes.io/managed-by".to_string(), "evil".to_string()),
+            (
+                "app.kubernetes.io/managed-by".to_string(),
+                "evil".to_string(),
+            ),
         ]));
-        node.spec.service_annotations = Some(BTreeMap::from([
-            ("stellar.org/custom".to_string(), "${name}-service".to_string()),
-        ]));
+        node.spec.service_annotations = Some(BTreeMap::from([(
+            "stellar.org/custom".to_string(),
+            "${name}-service".to_string(),
+        )]));
 
         let svc = build_service_for_test(&node);
         let labels = svc.metadata.labels.as_ref().expect("labels must exist");
         assert_eq!(labels.get("team"), Some(&"infra".to_string()));
-        assert_eq!(labels.get("app.kubernetes.io/managed-by"), Some(&"stellar-operator".to_string()));
+        assert_eq!(
+            labels.get("app.kubernetes.io/managed-by"),
+            Some(&"stellar-operator".to_string())
+        );
 
-        let annotations = svc.metadata.annotations.as_ref().expect("annotations must exist");
-        assert_eq!(annotations.get("stellar.org/custom"), Some(&"test-node-service".to_string()));
+        let annotations = svc
+            .metadata
+            .annotations
+            .as_ref()
+            .expect("annotations must exist");
+        assert_eq!(
+            annotations.get("stellar.org/custom"),
+            Some(&"test-node-service".to_string())
+        );
     }
 
     #[test]
@@ -914,18 +930,16 @@ peer-2 = "G..."
         let netpol = build_network_policy(&node, &config);
         let spec = netpol.spec.expect("spec must be present");
 
-        assert!(
-            spec.policy_types
-                .as_ref()
-                .unwrap()
-                .contains(&"Ingress".to_string())
-        );
-        assert!(
-            spec.policy_types
-                .as_ref()
-                .unwrap()
-                .contains(&"Egress".to_string())
-        );
+        assert!(spec
+            .policy_types
+            .as_ref()
+            .unwrap()
+            .contains(&"Ingress".to_string()));
+        assert!(spec
+            .policy_types
+            .as_ref()
+            .unwrap()
+            .contains(&"Egress".to_string()));
 
         let egress = spec.egress.expect("egress rules must be present");
 
@@ -973,12 +987,19 @@ peer-2 = "G..."
                 && rule.ports.as_ref().is_some_and(|ports| {
                     ports.iter().any(|p| {
                         p.port.as_ref()
-                            == Some(&k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int(8000))
+                            == Some(
+                                &k8s_openapi::apimachinery::pkg::util::intstr::IntOrString::Int(
+                                    8000,
+                                ),
+                            )
                     })
                 })
         });
 
-        assert!(has_public_http, "Horizon must allow port 8000 ingress from external sources");
+        assert!(
+            has_public_http,
+            "Horizon must allow port 8000 ingress from external sources"
+        );
     }
 }
 
@@ -1092,8 +1113,8 @@ mod init_containers_tests {
 
     use crate::controller::resources::{build_deployment_for_test, build_statefulset_for_test};
     use crate::crd::{
-        NodeType, StellarNetwork, StellarNodeSpec,
         types::{ResourceRequirements, ResourceSpec, ValidatorConfig},
+        NodeType, StellarNetwork, StellarNodeSpec,
     };
 
     fn make_node(
@@ -1384,29 +1405,8 @@ mod diagnostic_sidecar_resource_tests {
 
     use crate::controller::resources::{build_deployment_for_test, build_statefulset_for_test};
     use crate::crd::{
-        NodeType, StellarNetwork, StellarNode, StellarNodeSpec,
         types::{ResourceRequirements, ResourceSpec, ValidatorConfig},
-    };
-
-    fn make_node(node_type: NodeType) -> StellarNode {
-        let spec = StellarNodeSpec {
-            node_type: node_type.clone(),
-            network: StellarNetwork::Testnet,
-            version: "v21.0.0".to_string(),
-            resources: ResourceRequirements {
-                requests: ResourceSpec {
-                    cpu: "500m".to_string(),
-                    memory: "1Gi".to_string(),
-                },
-                limits: ResourceSpec {
-                    cpu: "2".to_string(),
-                    memory: "4Gi".to_string(),
-                },
-
-    use crate::controller::resources::{build_deployment_for_test, build_statefulset_for_test};
-    use crate::crd::{
         NodeType, StellarNetwork, StellarNode, StellarNodeSpec,
-        types::{ResourceRequirements, ResourceSpec, ValidatorConfig},
     };
 
     fn make_node(node_type: NodeType) -> StellarNode {
@@ -1735,11 +1735,14 @@ mod pdb_tests {
     #[test]
     fn test_non_validator_multi_replica_default_pdb() {
         let node = node_with_replicas(NodeType::Horizon, 3);
-        let pdb = build_pdb_for_test(&node).expect("PDB must be generated for multi-replica Horizon");
+        let pdb =
+            build_pdb_for_test(&node).expect("PDB must be generated for multi-replica Horizon");
         let spec = pdb.spec.unwrap();
         assert_eq!(spec.max_unavailable, Some(IntOrString::Int(1)));
         assert!(spec.min_available.is_none());
     }
+}
+
 #[test]
 fn test_validator_custom_env_overrides_defaults() {
     use k8s_openapi::api::core::v1::EnvVar;
@@ -1883,78 +1886,15 @@ fn test_spec_and_jurisdiction_tolerations_are_applied() {
                 cpu: "500m".to_string(),
                 memory: "1Gi".to_string(),
             },
-            replicas: 1,
-            validator_config: if node_type == NodeType::Validator {
-                Some(ValidatorConfig {
-                    seed_secret_ref: "my-seed".to_string(),
-                    ..Default::default()
-                })
-            } else {
-                None
-            },
-            ..Default::default()
-        };
-
-        let mut node = StellarNode::new("test-node", spec);
-        node.metadata.namespace = Some("default".to_string());
-        node
-    }
-
-    fn health_sidecar(containers: &[Container]) -> &Container {
-        containers
-            .iter()
-            .find(|container| container.name == "stellar-health-check")
-            .expect("diagnostic sidecar must be present")
-    }
-
-    #[test]
-    fn applies_default_diagnostic_sidecar_resources_to_statefulset() {
-        let node = make_node(NodeType::Validator);
-        let sts = build_statefulset_for_test(&node);
-        let pod_spec = sts.spec.unwrap().template.spec.unwrap();
-        let resources = health_sidecar(&pod_spec.containers)
-            .resources
-            .as_ref()
-            .expect("diagnostic sidecar resources must be set");
-
-        let requests = resources.requests.as_ref().expect("requests must be set");
-        let limits = resources.limits.as_ref().expect("limits must be set");
-
-        assert_eq!(requests.get("cpu").unwrap().0, "50m");
-        assert_eq!(requests.get("memory").unwrap().0, "64Mi");
-        assert_eq!(limits.get("cpu").unwrap().0, "50m");
-        assert_eq!(limits.get("memory").unwrap().0, "64Mi");
-    }
-
-    #[test]
-    fn applies_crd_override_diagnostic_sidecar_resources_to_deployment() {
-        let mut node = make_node(NodeType::Horizon);
-        node.spec.diagnostic_sidecar_resources = Some(ResourceRequirements {
-            requests: ResourceSpec {
-                cpu: "75m".to_string(),
-                memory: "96Mi".to_string(),
-            },
             limits: ResourceSpec {
-                cpu: "150m".to_string(),
-                memory: "128Mi".to_string(),
+                cpu: "2".to_string(),
+                memory: "4Gi".to_string(),
             },
-        });
-
-        let deployment = build_deployment_for_test(&node);
-        let pod_spec = deployment.spec.unwrap().template.spec.unwrap();
-        let resources = health_sidecar(&pod_spec.containers)
-            .resources
-            .as_ref()
-            .expect("diagnostic sidecar resources must be set");
-
-        let requests = resources.requests.as_ref().expect("requests must be set");
-        let limits = resources.limits.as_ref().expect("limits must be set");
-
-        assert_eq!(requests.get("cpu").unwrap().0, "75m");
-        assert_eq!(requests.get("memory").unwrap().0, "96Mi");
-        assert_eq!(limits.get("cpu").unwrap().0, "150m");
-        assert_eq!(limits.get("memory").unwrap().0, "128Mi");
-    }
+        },
+        replicas: 1,
+        validator_config: Some(ValidatorConfig {
+            seed_secret_ref: "my-seed".to_string(),
+            ..Default::default()
         }),
         tolerations: vec![Toleration {
             key: Some("dedicated".to_string()),

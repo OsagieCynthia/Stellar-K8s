@@ -102,7 +102,11 @@ impl EventStreamProcessor {
         // Forward to NATS
         #[cfg(feature = "nats")]
         if let Some(client) = &self.nats_client {
-            let subject = format!("{}.{}", self.config.subject_prefix, event.event_type.replace('.', "_"));
+            let subject = format!(
+                "{}.{}",
+                self.config.subject_prefix,
+                event.event_type.replace('.', "_")
+            );
             let payload = serde_json::to_vec(&event)
                 .map_err(|e| crate::error::Error::SerializationError(e))?;
             if let Err(e) = client.publish(subject, payload.into()).await {
@@ -115,7 +119,9 @@ impl EventStreamProcessor {
 
     /// Subscribe to all events (in-process broadcast).
     pub fn subscribe(&self) -> EventSubscription {
-        EventSubscription { rx: self.tx.subscribe() }
+        EventSubscription {
+            rx: self.tx.subscribe(),
+        }
     }
 
     /// Subscribe to events matching a type prefix (in-process filter).
@@ -153,7 +159,9 @@ mod tests {
 
     #[tokio::test]
     async fn publish_and_receive() {
-        let proc = EventStreamProcessor::new(StreamConfig::default()).await.unwrap();
+        let proc = EventStreamProcessor::new(StreamConfig::default())
+            .await
+            .unwrap();
         let mut sub = proc.subscribe();
 
         let ev = ProcessingEvent::new(
@@ -171,7 +179,9 @@ mod tests {
 
     #[tokio::test]
     async fn filtered_subscription() {
-        let proc = EventStreamProcessor::new(StreamConfig::default()).await.unwrap();
+        let proc = EventStreamProcessor::new(StreamConfig::default())
+            .await
+            .unwrap();
         let mut sub = proc.subscribe_filtered("stellar.node".into());
 
         let ev = ProcessingEvent::new(

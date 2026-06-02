@@ -166,7 +166,12 @@ pub fn analyze(spec: &StellarTopologySpec, online: &BTreeSet<String>) -> Topolog
     let components = connected_components(&adj, &online_declared);
     let partition_detected = components.len() > 1;
     let recommendations = recommendations(spec, &components, quorum_health_pct);
-    let phase = derive_phase(partition_detected, quorum_health_pct, spec.min_online_pct, total);
+    let phase = derive_phase(
+        partition_detected,
+        quorum_health_pct,
+        spec.min_online_pct,
+        total,
+    );
 
     TopologyAnalysis {
         total_validators: total,
@@ -254,10 +259,7 @@ mod tests {
         assert!(a.partition_detected);
         assert_eq!(a.phase, TopologyPhase::Partitioned);
         assert_eq!(a.components.len(), 2);
-        assert!(a
-            .recommendations
-            .iter()
-            .any(|r| r.contains("partitioned")));
+        assert!(a.recommendations.iter().any(|r| r.contains("partitioned")));
     }
 
     #[test]
@@ -310,9 +312,6 @@ mod tests {
         };
         let a = analyze(&spec, &all_online(&spec));
         // Each validator has only one peer (< 2).
-        assert!(a
-            .recommendations
-            .iter()
-            .any(|r| r.contains("only 1 peer")));
+        assert!(a.recommendations.iter().any(|r| r.contains("only 1 peer")));
     }
 }

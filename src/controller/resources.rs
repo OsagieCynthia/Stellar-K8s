@@ -35,8 +35,7 @@ use k8s_openapi::apimachinery::pkg::api::resource::Quantity;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::{LabelSelector, ObjectMeta, OwnerReference};
 use k8s_openapi::apimachinery::pkg::util::intstr::IntOrString;
 use kube::api::{
-    Api, ApiResource, DeleteParams, DynamicObject, GroupVersionKind, Patch, PatchParams,
-    PostParams,
+    Api, ApiResource, DeleteParams, DynamicObject, GroupVersionKind, Patch, PatchParams, PostParams,
 };
 use kube::{Client, Resource, ResourceExt};
 use tracing::{info, instrument, warn};
@@ -89,10 +88,7 @@ pub(crate) fn standard_labels(node: &StellarNode) -> BTreeMap<String, String> {
 fn render_annotation_template(value: &str, node: &StellarNode) -> String {
     let mut rendered = value.replace("{{name}}", &node.name_any());
     rendered = rendered.replace("${name}", &node.name_any());
-    rendered = rendered.replace(
-        "{{namespace}}",
-        &node.namespace().unwrap_or_default(),
-    );
+    rendered = rendered.replace("{{namespace}}", &node.namespace().unwrap_or_default());
     rendered = rendered.replace("${namespace}", &node.namespace().unwrap_or_default());
     rendered = rendered.replace("{{nodeType}}", &node.spec.node_type.to_string());
     rendered = rendered.replace("${nodeType}", &node.spec.node_type.to_string());
@@ -107,14 +103,17 @@ pub(crate) fn merge_service_annotations(
 ) {
     if let Some(service_annotations) = &node.spec.service_annotations {
         for (key, value) in service_annotations {
-            annotations.entry(key.clone()).or_insert_with(|| {
-                render_annotation_template(value, node)
-            });
+            annotations
+                .entry(key.clone())
+                .or_insert_with(|| render_annotation_template(value, node));
         }
     }
 }
 
-pub(crate) fn merge_service_metadata_labels(labels: &mut BTreeMap<String, String>, node: &StellarNode) {
+pub(crate) fn merge_service_metadata_labels(
+    labels: &mut BTreeMap<String, String>,
+    node: &StellarNode,
+) {
     if let Some(service_labels) = &node.spec.service_labels {
         for (key, value) in service_labels {
             labels.entry(key.clone()).or_insert_with(|| value.clone());
@@ -414,99 +413,6 @@ pub async fn ensure_pvc(
 // ============================================================================
 // PodDisruptionBudget
 // ============================================================================
-
-/// Ensure a PodDisruptionBudget exists for the node
-#[instrument(skip(client, node), fields(name = %node.name_any(), namespace = node.namespace()))]
-pub async fn ensure_pdb(client: &Client, node: &StellarNode, dry_run: bool) -> Result<()> {
-    // PDBs are primarily for core nodes (Validators) to maintain quorum.
-    // However, we can also support them for other node types if requested.
-    if node.spec.node_type != NodeType::Validator
-        && node.spec.min_available.is_none()
-        && node.spec.max_unavailable.is_none()
-    {
-        return Ok(());
-    }
-
-    let namespace = node.namespace().unwrap_or_else(|| "default".to_string());
-    let api: Api<PodDisruptionBudget> = Api::namespaced(client.clone(), &namespace);
-    let name = node.name_any();
-
-    let pdb = build_pdb(node);
-
-    match api.get(&name).await {
-        Ok(existing) => {
-            if pdb_needs_update(&existing, &pdb) {
-                info!("Updating PDB {}", name);
-                api.patch(&name, &patch_params(dry_run), &Patch::Apply(&pdb))
-                    .await?;
-            } else {
-                info!("PDB {} already exists and is up-to-date", name);
-            }
-        }
-        Err(kube::Error::Api(e)) if e.code == 404 => {
-            info!("Creating PDB {}", name);
-            api.create(&post_params(dry_run), &pdb).await?;
-        }
-        Err(e) => return Err(Error::KubeError(e)),
-    }
-
-    Ok(())
-}
-
-fn pdb_needs_update(existing: &PodDisruptionBudget, desired: &PodDisruptionBudget) -> bool {
-    existing.spec != desired.spec
-        || existing.metadata.labels != desired.metadata.labels
-        || existing.metadata.annotations != desired.metadata.annotations
-}
-
-fn build_pdb(node: &StellarNode) -> PodDisruptionBudget {
-    let labels = standard_labels(node);
-    let name = node.name_any();
-
-    // Calculate min_available to maintain quorum for Validators if not explicitly provided
-    let min_available = if let Some(min_avail) = &node.spec.min_available {
-        Some(min_avail.clone())
-    } else if node.spec.max_unavailable.is_some() {
-        None // Use max_unavailable instead
-    } else if node.spec.node_type == NodeType::Validator {
-        // For Stellar Validators, maintain quorum.
-        // Formula: ceil(2N / 3) to ensure 2/3 majority.
-        let replicas = node.spec.replicas;
-        let quorum_min = (2.0 * replicas as f64 / 3.0).ceil() as i32;
-        Some(IntOrString::Int(quorum_min.max(1)))
-    } else {
-        None
-    };
-
-    let max_unavailable = if min_available.is_none() {
-        node.spec.max_unavailable.clone()
-    } else {
-        None
-    };
-
-    PodDisruptionBudget {
-        metadata: merge_resource_meta(
-            ObjectMeta {
-                name: Some(name),
-                namespace: node.namespace(),
-                labels: Some(labels),
-                owner_references: Some(vec![owner_reference(node)]),
-                ..Default::default()
-            },
-            &node.spec.resource_meta,
-        ),
-        spec: Some(PodDisruptionBudgetSpec {
-            min_available,
-            max_unavailable,
-            selector: Some(LabelSelector {
-                match_labels: Some(standard_labels(node)),
-                ..Default::default()
-            }),
-            ..Default::default()
-        }),
-        status: None,
-    }
-}
 
 fn resolve_pvc_storage_class(
     node: &StellarNode,
@@ -2224,9 +2130,9 @@ fn build_pod_template(
                     containers.push(Container {
                         name: "dedicatedhsm-client".to_string(),
                         image: Some("azure/dedicated-hsm-client:latest".to_string()),
-                        command: Some(vec![
-                            "/opt/dedicatedhsm/bin/dedicatedhsm_client".to_string(),
-                        ]),
+                        command: Some(
+                            vec!["/opt/dedicatedhsm/bin/dedicatedhsm_client".to_string()],
+                        ),
                         args: Some(vec!["--foreground".to_string()]),
                         volume_mounts: Some(vec![VolumeMount {
                             name: "dedicatedhsm-socket".to_string(),
@@ -3309,6 +3215,8 @@ fn build_container(node: &StellarNode, enable_mtls: bool) -> Container {
             }
             volume_mounts.push(mount.clone());
         }
+    }
+
     // Apply node-type specific custom environment variables from the CRD.
     match node.spec.node_type {
         NodeType::Validator => merge_env_overrides(&mut env_vars, &node.spec.stellar_core_env),
@@ -3432,6 +3340,9 @@ fn build_diagnostic_sidecar_resources(
             .collect(),
         ),
         claims: None,
+    }
+}
+
 fn merge_env_overrides(base: &mut Vec<EnvVar>, overrides: &[EnvVar]) {
     for override_var in overrides {
         if let Some(existing) = base.iter_mut().find(|env| env.name == override_var.name) {
@@ -3927,7 +3838,10 @@ fn service_monitor_api_resource() -> ApiResource {
 }
 
 pub async fn ensure_service_monitor(client: &Client, node: &StellarNode) -> Result<()> {
-    if !matches!(node.spec.node_type, NodeType::Horizon | NodeType::SorobanRpc) {
+    if !matches!(
+        node.spec.node_type,
+        NodeType::Horizon | NodeType::SorobanRpc
+    ) {
         return Ok(());
     }
 
@@ -3981,7 +3895,10 @@ pub async fn ensure_service_monitor(client: &Client, node: &StellarNode) -> Resu
 }
 
 pub async fn delete_service_monitor(client: &Client, node: &StellarNode) -> Result<()> {
-    if !matches!(node.spec.node_type, NodeType::Horizon | NodeType::SorobanRpc) {
+    if !matches!(
+        node.spec.node_type,
+        NodeType::Horizon | NodeType::SorobanRpc
+    ) {
         return Ok(());
     }
 
@@ -3993,7 +3910,10 @@ pub async fn delete_service_monitor(client: &Client, node: &StellarNode) -> Resu
     match api.delete(&name, &DeleteParams::default()).await {
         Ok(_) => info!("Deleted ServiceMonitor {}/{}", namespace, name),
         Err(kube::Error::Api(api_err)) if api_err.code == 404 => {
-            info!("ServiceMonitor {}/{} not found (already deleted)", namespace, name)
+            info!(
+                "ServiceMonitor {}/{} not found (already deleted)",
+                namespace, name
+            )
         }
         Err(e) => return Err(Error::KubeError(e)),
     }
@@ -4700,8 +4620,8 @@ pub(crate) fn build_service_for_test(node: &StellarNode) -> k8s_openapi::api::co
 mod ensure_pvc_tests {
     use super::{build_hpa, build_pvc, pvc_needs_update, resolve_pvc_storage_class};
     use crate::crd::{
-        NodeType, StellarNetwork, StellarNode, StellarNodeSpec,
         types::{ResourceRequirements, ResourceSpec, StorageMode},
+        NodeType, StellarNetwork, StellarNode, StellarNodeSpec,
     };
     use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 

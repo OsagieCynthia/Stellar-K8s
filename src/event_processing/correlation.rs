@@ -102,9 +102,11 @@ impl CorrelationEngine {
         match &self.config.strategy {
             CorrelationStrategy::ByCorrelationId => event.correlation_id.clone(),
             CorrelationStrategy::ByAggregateId => event.aggregate_id.clone(),
-            CorrelationStrategy::ByLabel(label) => {
-                event.labels.get(label).cloned().unwrap_or_else(|| event.id.clone())
-            }
+            CorrelationStrategy::ByLabel(label) => event
+                .labels
+                .get(label)
+                .cloned()
+                .unwrap_or_else(|| event.id.clone()),
         }
     }
 
@@ -125,7 +127,11 @@ impl CorrelationEngine {
         for k in expired_keys {
             if let Some(og) = groups.remove(&k) {
                 if og.group.events.len() >= self.config.min_group_size {
-                    debug!("correlation: emitting group '{}' ({} events)", k, og.group.events.len());
+                    debug!(
+                        "correlation: emitting group '{}' ({} events)",
+                        k,
+                        og.group.events.len()
+                    );
                     let _ = self.group_tx.send(og.group);
                 }
             }

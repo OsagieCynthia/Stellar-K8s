@@ -51,7 +51,9 @@ pub struct BackupManager {
 
 impl BackupManager {
     pub fn new() -> std::sync::Arc<Self> {
-        std::sync::Arc::new(Self { records: tokio::sync::RwLock::new(vec![]) })
+        std::sync::Arc::new(Self {
+            records: tokio::sync::RwLock::new(vec![]),
+        })
     }
 
     /// Collect WAL/archive configuration and recent backup metadata.
@@ -75,10 +77,16 @@ impl BackupManager {
 
         let mut alerts = vec![];
         if wal_level == "minimal" {
-            alerts.push(DbAlert::warn("backup_pitr", "wal_level=minimal; PITR not possible"));
+            alerts.push(DbAlert::warn(
+                "backup_pitr",
+                "wal_level=minimal; PITR not possible",
+            ));
         }
         if archive_mode == "off" {
-            alerts.push(DbAlert::warn("backup_pitr", "archive_mode=off; WAL archiving disabled"));
+            alerts.push(DbAlert::warn(
+                "backup_pitr",
+                "archive_mode=off; WAL archiving disabled",
+            ));
         }
 
         let records = self.records.read().await.clone();
@@ -135,7 +143,10 @@ impl BackupManager {
     }
 
     /// Record a PITR recovery point at the current LSN.
-    pub async fn create_recovery_point(pool: &PgPool, label: &str) -> crate::error::Result<PitrPoint> {
+    pub async fn create_recovery_point(
+        pool: &PgPool,
+        label: &str,
+    ) -> crate::error::Result<PitrPoint> {
         let (lsn,): (String,) =
             sqlx::query_as(&format!("SELECT pg_create_restore_point('{label}')::text"))
                 .fetch_one(pool)
@@ -143,13 +154,19 @@ impl BackupManager {
                 .map_err(crate::error::Error::SqlxError)?;
 
         info!("PITR recovery point '{label}' at LSN {lsn}");
-        Ok(PitrPoint { lsn, recorded_at: Utc::now(), label: label.to_string() })
+        Ok(PitrPoint {
+            lsn,
+            recorded_at: Utc::now(),
+            label: label.to_string(),
+        })
     }
 }
 
 impl Default for BackupManager {
     fn default() -> Self {
-        Self { records: tokio::sync::RwLock::new(vec![]) }
+        Self {
+            records: tokio::sync::RwLock::new(vec![]),
+        }
     }
 }
 

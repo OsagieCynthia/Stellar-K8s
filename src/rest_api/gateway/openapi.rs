@@ -3,8 +3,8 @@
 //! Generates OpenAPI 3.0 specifications from gateway routes
 //! and provides interactive API explorer UI.
 
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// OpenAPI 3.0 Document
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -175,7 +175,10 @@ pub enum OpenApiSchema {
     Integer(OpenApiIntegerSchema),
     Number(OpenApiNumberSchema),
     Boolean(OpenApiBooleanSchema),
-    Ref { $ref: String },
+    Ref {
+        #[serde(rename = "$ref")]
+        ref_path: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -353,45 +356,53 @@ impl OpenApiGenerator {
         let mut security_schemes: HashMap<String, OpenApiSecurityScheme> = HashMap::new();
 
         // Add default security schemes
-        security_schemes.insert("bearerAuth".to_string(), OpenApiSecurityScheme {
-            scheme_type: "http".to_string(),
-            description: Some("JWT Bearer token authentication".to_string()),
-            name: Some("Authorization".to_string()),
-            location: Some("header".to_string()),
-            scheme: Some("bearer".to_string()),
-            bearer_format: Some("JWT".to_string()),
-            flows: None,
-            open_id_connect_url: None,
-        });
+        security_schemes.insert(
+            "bearerAuth".to_string(),
+            OpenApiSecurityScheme {
+                scheme_type: "http".to_string(),
+                description: Some("JWT Bearer token authentication".to_string()),
+                name: Some("Authorization".to_string()),
+                location: Some("header".to_string()),
+                scheme: Some("bearer".to_string()),
+                bearer_format: Some("JWT".to_string()),
+                flows: None,
+                open_id_connect_url: None,
+            },
+        );
 
-        security_schemes.insert("apiKeyAuth".to_string(), OpenApiSecurityScheme {
-            scheme_type: "apiKey".to_string(),
-            description: Some("API Key authentication".to_string()),
-            name: Some("X-API-Key".to_string()),
-            location: Some("header".to_string()),
-            scheme: None,
-            bearer_format: None,
-            flows: None,
-            open_id_connect_url: None,
-        });
+        security_schemes.insert(
+            "apiKeyAuth".to_string(),
+            OpenApiSecurityScheme {
+                scheme_type: "apiKey".to_string(),
+                description: Some("API Key authentication".to_string()),
+                name: Some("X-API-Key".to_string()),
+                location: Some("header".to_string()),
+                scheme: None,
+                bearer_format: None,
+                flows: None,
+                open_id_connect_url: None,
+            },
+        );
 
         // Convert routes to paths
         for route in &self.routes {
-            let path_item = paths.entry(route.path.clone()).or_insert_with(|| OpenApiPathItem {
-                summary: None,
-                description: None,
-                get: None,
-                post: None,
-                put: None,
-                patch: None,
-                delete: None,
-                options: None,
-                head: None,
-                trace: None,
-            });
+            let path_item = paths
+                .entry(route.path.clone())
+                .or_insert_with(|| OpenApiPathItem {
+                    summary: None,
+                    description: None,
+                    get: None,
+                    post: None,
+                    put: None,
+                    patch: None,
+                    delete: None,
+                    options: None,
+                    head: None,
+                    trace: None,
+                });
 
             let operation = self.route_to_operation(route);
-            
+
             match route.method.to_uppercase().as_str() {
                 "GET" => path_item.get = Some(operation),
                 "POST" => path_item.post = Some(operation),
@@ -407,26 +418,32 @@ impl OpenApiGenerator {
             // Add schemas for request/response bodies
             if let Some(ref req_body) = route.request_body {
                 if !schemas.contains_key(&req_body.schema) {
-                    schemas.insert(req_body.schema.clone(), OpenApiSchema::Object(OpenApiObjectSchema {
-                        title: Some(req_body.schema.clone()),
-                        description: None,
-                        required: None,
-                        properties: None,
-                        example: None,
-                    }));
+                    schemas.insert(
+                        req_body.schema.clone(),
+                        OpenApiSchema::Object(OpenApiObjectSchema {
+                            title: Some(req_body.schema.clone()),
+                            description: None,
+                            required: None,
+                            properties: None,
+                            example: None,
+                        }),
+                    );
                 }
             }
 
             for resp in &route.responses {
                 if let Some(ref schema) = resp.schema {
                     if !schemas.contains_key(schema) {
-                        schemas.insert(schema.clone(), OpenApiSchema::Object(OpenApiObjectSchema {
-                            title: Some(schema.clone()),
-                            description: None,
-                            required: None,
-                            properties: None,
-                            example: None,
-                        }));
+                        schemas.insert(
+                            schema.clone(),
+                            OpenApiSchema::Object(OpenApiObjectSchema {
+                                title: Some(schema.clone()),
+                                description: None,
+                                required: None,
+                                properties: None,
+                                example: None,
+                            }),
+                        );
                     }
                 }
             }
@@ -439,7 +456,8 @@ impl OpenApiGenerator {
                 tags_map.entry(tag.clone()).or_insert_with(|| tag.clone());
             }
         }
-        let tags: Vec<OpenApiTag> = tags_map.into_iter()
+        let tags: Vec<OpenApiTag> = tags_map
+            .into_iter()
             .map(|(name, _)| OpenApiTag {
                 name,
                 description: None,
@@ -480,14 +498,14 @@ impl OpenApiGenerator {
                         let mut m = HashMap::new();
                         m.insert("bearerAuth".to_string(), vec![]);
                         m
-                    }
+                    },
                 },
                 SecurityRequirement {
                     schemes: {
                         let mut m = HashMap::new();
                         m.insert("apiKeyAuth".to_string(), vec![]);
                         m
-                    }
+                    },
                 },
             ],
         }
@@ -495,34 +513,45 @@ impl OpenApiGenerator {
 
     fn route_to_operation(&self, route: &ApiRoute) -> OpenApiOperation {
         let mut parameters: Option<Vec<OpenApiParameter>> = None;
-        
+
         if !route.parameters.is_empty() {
-            parameters = Some(route.parameters.iter().map(|p| OpenApiParameter {
-                name: p.name.clone(),
-                location: p.location.clone(),
-                description: Some(p.description.clone()),
-                required: p.required,
-                schema_type: p.schema_type.clone(),
-                schema: Some(OpenApiSchema::String(OpenApiStringSchema {
-                    format: None,
-                    enum_values: None,
-                    pattern: None,
-                    min_length: None,
-                    max_length: None,
-                })),
-                example: None,
-            }).collect());
+            parameters = Some(
+                route
+                    .parameters
+                    .iter()
+                    .map(|p| OpenApiParameter {
+                        name: p.name.clone(),
+                        location: p.location.clone(),
+                        description: Some(p.description.clone()),
+                        required: p.required,
+                        schema_type: p.schema_type.clone(),
+                        schema: Some(OpenApiSchema::String(OpenApiStringSchema {
+                            format: None,
+                            enum_values: None,
+                            pattern: None,
+                            min_length: None,
+                            max_length: None,
+                        })),
+                        example: None,
+                    })
+                    .collect(),
+            );
         }
 
         let mut request_body = None;
         if let Some(ref req_body) = route.request_body {
             let mut content = HashMap::new();
-            content.insert(req_body.content_type.clone(), OpenApiMediaType {
-                schema: Some(OpenApiSchema::Ref { $ref: format!("#/components/schemas/{}", req_body.schema) }),
-                example: None,
-                examples: None,
-            });
-            
+            content.insert(
+                req_body.content_type.clone(),
+                OpenApiMediaType {
+                    schema: Some(OpenApiSchema::Ref {
+                        ref_path: format!("#/components/schemas/{}", req_body.schema),
+                    }),
+                    example: None,
+                    examples: None,
+                },
+            );
+
             request_body = Some(OpenApiRequestBody {
                 description: None,
                 content,
@@ -535,52 +564,67 @@ impl OpenApiGenerator {
             let mut resp_content = None;
             if let Some(ref schema) = resp.schema {
                 let mut content = HashMap::new();
-                content.insert("application/json".to_string(), OpenApiMediaType {
-                    schema: Some(OpenApiSchema::Ref { $ref: format!("#/components/schemas/{}", schema) }),
-                    example: None,
-                    examples: None,
-                });
+                content.insert(
+                    "application/json".to_string(),
+                    OpenApiMediaType {
+                        schema: Some(OpenApiSchema::Ref {
+                            ref_path: format!("#/components/schemas/{}", schema),
+                        }),
+                        example: None,
+                        examples: None,
+                    },
+                );
                 resp_content = Some(content);
             }
 
-            responses.insert(resp.status.to_string(), OpenApiResponse {
-                description: resp.description.clone(),
-                headers: None,
-                content: resp_content,
-                links: None,
-            });
+            responses.insert(
+                resp.status.to_string(),
+                OpenApiResponse {
+                    description: resp.description.clone(),
+                    headers: None,
+                    content: resp_content,
+                    links: None,
+                },
+            );
         }
 
         // Default responses
-        responses.insert("401".to_string(), OpenApiResponse {
-            description: "Unauthorized".to_string(),
-            headers: None,
-            content: None,
-            links: None,
-        });
-        responses.insert("429".to_string(), OpenApiResponse {
-            description: "Too Many Requests".to_string(),
-            headers: None,
-            content: None,
-            links: None,
-        });
-        responses.insert("500".to_string(), OpenApiResponse {
-            description: "Internal Server Error".to_string(),
-            headers: None,
-            content: None,
-            links: None,
-        });
+        responses.insert(
+            "401".to_string(),
+            OpenApiResponse {
+                description: "Unauthorized".to_string(),
+                headers: None,
+                content: None,
+                links: None,
+            },
+        );
+        responses.insert(
+            "429".to_string(),
+            OpenApiResponse {
+                description: "Too Many Requests".to_string(),
+                headers: None,
+                content: None,
+                links: None,
+            },
+        );
+        responses.insert(
+            "500".to_string(),
+            OpenApiResponse {
+                description: "Internal Server Error".to_string(),
+                headers: None,
+                content: None,
+                links: None,
+            },
+        );
 
         let security = if route.auth_required {
-            vec![
-                SecurityRequirement {
-                    schemes: {
-                        let mut m = HashMap::new();
-                        m.insert("bearerAuth".to_string(), vec![]);
-                        m
-                    }
-                }
-            ]
+            vec![SecurityRequirement {
+                schemes: {
+                    let mut m = HashMap::new();
+                    m.insert("bearerAuth".to_string(), vec![]);
+                    m
+                },
+            }]
         } else {
             vec![]
         };
@@ -626,13 +670,11 @@ pub fn get_default_routes() -> Vec<ApiRoute> {
                 },
             ],
             request_body: None,
-            responses: vec![
-                RouteResponse {
-                    status: 200,
-                    description: "Successful response".to_string(),
-                    schema: Some("NodeList".to_string()),
-                },
-            ],
+            responses: vec![RouteResponse {
+                status: 200,
+                description: "Successful response".to_string(),
+                schema: Some("NodeList".to_string()),
+            }],
             auth_required: true,
         },
         ApiRoute {
@@ -658,13 +700,11 @@ pub fn get_default_routes() -> Vec<ApiRoute> {
                 },
             ],
             request_body: None,
-            responses: vec![
-                RouteResponse {
-                    status: 200,
-                    description: "Successful response".to_string(),
-                    schema: Some("StellarNode".to_string()),
-                },
-            ],
+            responses: vec![RouteResponse {
+                status: 200,
+                description: "Successful response".to_string(),
+                schema: Some("StellarNode".to_string()),
+            }],
             auth_required: true,
         },
         ApiRoute {
@@ -675,13 +715,11 @@ pub fn get_default_routes() -> Vec<ApiRoute> {
             tags: vec!["Dashboard".to_string()],
             parameters: vec![],
             request_body: None,
-            responses: vec![
-                RouteResponse {
-                    status: 200,
-                    description: "Successful response".to_string(),
-                    schema: Some("DashboardOverview".to_string()),
-                },
-            ],
+            responses: vec![RouteResponse {
+                status: 200,
+                description: "Successful response".to_string(),
+                schema: Some("DashboardOverview".to_string()),
+            }],
             auth_required: true,
         },
     ]
@@ -695,7 +733,10 @@ mod tests {
     fn test_openapi_generator() {
         let doc = OpenApiGenerator::new("Test API", "1.0.0")
             .description("Test API Description")
-            .add_server("https://api.example.com", Some("Production server".to_string()))
+            .add_server(
+                "https://api.example.com",
+                Some("Production server".to_string()),
+            )
             .add_route(ApiRoute {
                 path: "/test".to_string(),
                 method: "GET".to_string(),
@@ -704,13 +745,11 @@ mod tests {
                 tags: vec!["Test".to_string()],
                 parameters: vec![],
                 request_body: None,
-                responses: vec![
-                    RouteResponse {
-                        status: 200,
-                        description: "OK".to_string(),
-                        schema: None,
-                    }
-                ],
+                responses: vec![RouteResponse {
+                    status: 200,
+                    description: "OK".to_string(),
+                    schema: None,
+                }],
                 auth_required: false,
             })
             .generate();

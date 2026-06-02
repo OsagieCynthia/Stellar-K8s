@@ -86,8 +86,7 @@ pub const MAX_ACCEPTABLE_LAG_LEDGERS: u64 = 10;
 
 /// Docker image for the state-sync sidecar.
 /// In production, pin this to a specific digest.
-pub const STATE_SYNC_SIDECAR_IMAGE: &str =
-    "ghcr.io/stellar/stellar-k8s/state-sync-sidecar:latest";
+pub const STATE_SYNC_SIDECAR_IMAGE: &str = "ghcr.io/stellar/stellar-k8s/state-sync-sidecar:latest";
 
 // ─── Data types ──────────────────────────────────────────────────────────────
 
@@ -164,11 +163,13 @@ pub async fn ensure_ledger_state_configmap(
     let cm_name = ledger_state_configmap_name(node);
     let api: Api<ConfigMap> = Api::namespaced(client.clone(), &namespace);
 
-    let payload = serde_json::to_string(snapshot)
-        .map_err(Error::SerializationError)?;
+    let payload = serde_json::to_string(snapshot).map_err(Error::SerializationError)?;
 
     let mut labels = BTreeMap::new();
-    labels.insert("app.kubernetes.io/managed-by".to_string(), "stellar-operator".to_string());
+    labels.insert(
+        "app.kubernetes.io/managed-by".to_string(),
+        "stellar-operator".to_string(),
+    );
     labels.insert("stellar.org/state-sync".to_string(), "true".to_string());
     labels.insert("stellar.org/node".to_string(), node.name_any());
 
@@ -199,7 +200,10 @@ pub async fn ensure_ledger_state_configmap(
     )
     .await?;
 
-    debug!("Ledger state ConfigMap {} updated (seq={})", cm_name, snapshot.ledger_sequence);
+    debug!(
+        "Ledger state ConfigMap {} updated (seq={})",
+        cm_name, snapshot.ledger_sequence
+    );
     Ok(())
 }
 
@@ -222,12 +226,15 @@ pub async fn read_ledger_state_configmap(
             let data = cm.data.unwrap_or_default();
             match data.get(LEDGER_STATE_KEY) {
                 Some(raw) => {
-                    let snapshot: LedgerStateSnapshot = serde_json::from_str(raw)
-                        .map_err(Error::SerializationError)?;
+                    let snapshot: LedgerStateSnapshot =
+                        serde_json::from_str(raw).map_err(Error::SerializationError)?;
                     Ok(Some(snapshot))
                 }
                 None => {
-                    warn!("ConfigMap {} exists but has no '{}' key", cm_name, LEDGER_STATE_KEY);
+                    warn!(
+                        "ConfigMap {} exists but has no '{}' key",
+                        cm_name, LEDGER_STATE_KEY
+                    );
                     Ok(None)
                 }
             }
@@ -447,7 +454,8 @@ pub async fn run_sidecar_loop(
         };
 
         // 2. Poll Stellar Core
-        let snapshot = match fetch_local_ledger_state_internal(core_url, expected_passphrase).await {
+        let snapshot = match fetch_local_ledger_state_internal(core_url, expected_passphrase).await
+        {
             Ok(s) => s,
             Err(e) => {
                 warn!("Sidecar: failed to poll Stellar Core: {}", e);
@@ -673,7 +681,9 @@ fn parse_peer_cluster_id<'a>(
         (ns.to_string(), name.to_string())
     } else {
         (
-            local_node.namespace().unwrap_or_else(|| "default".to_string()),
+            local_node
+                .namespace()
+                .unwrap_or_else(|| "default".to_string()),
             peer_cluster_id.to_string(),
         )
     }
@@ -685,7 +695,7 @@ fn parse_peer_cluster_id<'a>(
 mod tests {
     use super::*;
     use crate::crd::{
-        DisasterRecoveryConfig, DRRole, DRSyncStrategy, NodeType, ResourceRequirements,
+        DRRole, DRSyncStrategy, DisasterRecoveryConfig, NodeType, ResourceRequirements,
         ResourceSpec, StellarNetwork, StellarNode, StellarNodeSpec, StorageConfig,
     };
     use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
@@ -785,7 +795,10 @@ mod tests {
         let primary = make_snapshot(1_000_005, "abc123");
         let result = check_state_consistency(&primary, 1_000_000, None);
         assert_eq!(result.lag_ledgers, 5);
-        assert!(result.within_threshold, "lag of 5 should be within threshold of {MAX_ACCEPTABLE_LAG_LEDGERS}");
+        assert!(
+            result.within_threshold,
+            "lag of 5 should be within threshold of {MAX_ACCEPTABLE_LAG_LEDGERS}"
+        );
     }
 
     #[test]
@@ -793,14 +806,20 @@ mod tests {
         let primary = make_snapshot(1_000_100, "abc123");
         let result = check_state_consistency(&primary, 1_000_000, None);
         assert_eq!(result.lag_ledgers, 100);
-        assert!(!result.within_threshold, "lag of 100 should exceed threshold");
+        assert!(
+            !result.within_threshold,
+            "lag of 100 should exceed threshold"
+        );
     }
 
     #[test]
     fn test_hash_mismatch_at_same_ledger_detects_fork() {
         let primary = make_snapshot(1_000_000, "correct_hash");
         let result = check_state_consistency(&primary, 1_000_000, Some("wrong_hash"));
-        assert!(!result.hash_chain_consistent, "hash mismatch must be detected as fork");
+        assert!(
+            !result.hash_chain_consistent,
+            "hash mismatch must be detected as fork"
+        );
         assert_eq!(result.lag_ledgers, 0);
     }
 
@@ -816,7 +835,10 @@ mod tests {
         // When standby is behind, we can't compare hashes — should be consistent
         let primary = make_snapshot(1_000_010, "primary_hash");
         let result = check_state_consistency(&primary, 1_000_000, Some("old_hash"));
-        assert!(result.hash_chain_consistent, "behind standby should not trigger fork detection");
+        assert!(
+            result.hash_chain_consistent,
+            "behind standby should not trigger fork detection"
+        );
         assert_eq!(result.lag_ledgers, 10);
     }
 
@@ -825,7 +847,10 @@ mod tests {
         // Saturating sub: standby ahead → lag = 0
         let primary = make_snapshot(999_990, "hash_a");
         let result = check_state_consistency(&primary, 1_000_000, None);
-        assert_eq!(result.lag_ledgers, 0, "saturating_sub should prevent underflow");
+        assert_eq!(
+            result.lag_ledgers, 0,
+            "saturating_sub should prevent underflow"
+        );
         assert!(result.within_threshold);
     }
 
@@ -844,7 +869,10 @@ mod tests {
         let sidecar = build_state_sync_sidecar(&node);
         let env = sidecar.env.unwrap_or_default();
         let passphrase_env = env.iter().find(|e| e.name == "NETWORK_PASSPHRASE");
-        assert!(passphrase_env.is_some(), "sidecar must have NETWORK_PASSPHRASE env var");
+        assert!(
+            passphrase_env.is_some(),
+            "sidecar must have NETWORK_PASSPHRASE env var"
+        );
         assert_eq!(
             passphrase_env.unwrap().value.as_deref(),
             Some("Test SDF Network ; September 2015")
@@ -855,9 +883,17 @@ mod tests {
     fn test_sidecar_has_resource_limits() {
         let node = make_node("validator-primary", DRRole::Primary);
         let sidecar = build_state_sync_sidecar(&node);
-        let resources = sidecar.resources.expect("sidecar must have resource limits");
-        assert!(resources.limits.is_some(), "sidecar must have resource limits");
-        assert!(resources.requests.is_some(), "sidecar must have resource requests");
+        let resources = sidecar
+            .resources
+            .expect("sidecar must have resource limits");
+        assert!(
+            resources.limits.is_some(),
+            "sidecar must have resource limits"
+        );
+        assert!(
+            resources.requests.is_some(),
+            "sidecar must have resource requests"
+        );
     }
 
     #[test]
@@ -867,7 +903,11 @@ mod tests {
         let mounts = sidecar.volume_mounts.unwrap_or_default();
         let data_mount = mounts.iter().find(|m| m.name == "data");
         assert!(data_mount.is_some(), "sidecar must mount the data volume");
-        assert_eq!(data_mount.unwrap().read_only, Some(true), "data volume must be read-only");
+        assert_eq!(
+            data_mount.unwrap().read_only,
+            Some(true),
+            "data volume must be read-only"
+        );
     }
 
     // ── ConfigMap naming ──────────────────────────────────────────────────────
@@ -917,8 +957,7 @@ mod tests {
             assert!(
                 result.within_threshold,
                 "Lag of {} should be within threshold at primary={}",
-                result.lag_ledgers,
-                primary_seq
+                result.lag_ledgers, primary_seq
             );
             assert!(
                 result.hash_chain_consistent,
@@ -926,7 +965,6 @@ mod tests {
             );
         }
     }
-}
 
     // ── High-load consistency simulation ─────────────────────────────────────
     // Proves state consistency under high load by simulating rapid ledger
@@ -964,7 +1002,10 @@ mod tests {
         // Simulate standby falling behind by 20 ledgers (network partition)
         let primary = make_snapshot(1_020_000, "hash_x");
         let result = check_state_consistency(&primary, 1_000_000, None);
-        assert!(!result.within_threshold, "sustained 20-ledger lag must be flagged");
+        assert!(
+            !result.within_threshold,
+            "sustained 20-ledger lag must be flagged"
+        );
         assert_eq!(result.lag_ledgers, 20_000);
     }
 

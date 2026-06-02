@@ -35,24 +35,44 @@ impl PartitionStrategy {
     pub fn compute_key(&self, record: &EtlRecord) -> PartitionKey {
         let value = match self {
             Self::ByDate => {
-                record.date_partition.replace('-', "/")
+                // Extract date from pipeline_ts (ISO-8601 format)
+                record.pipeline_ts.split('T').next().unwrap_or("unknown").replace('-', "/")
             }
             Self::ByDateHour => {
-                format!("{}/{:02}", record.date_partition.replace('-', "/"), record.hour_partition)
+                // Extract date and hour from pipeline_ts
+                let parts: Vec<&str> = record.pipeline_ts.split('T').collect();
+                let date = parts.get(0).unwrap_or(&"unknown").replace('-', "/");
+                let hour = parts.get(1)
+                    .and_then(|t| t.split(':').next())
+                    .and_then(|h| h.parse::<u8>().ok())
+                    .unwrap_or(0);
+                format!("{}/{:02}", date, hour)
             }
             Self::ByLedgerRange { bucket_size } => {
-                let bucket = record.sequence / bucket_size;
+                let sequence = record.ledger_seq.unwrap_or(0);
+                let bucket = sequence / bucket_size;
                 let start = bucket * bucket_size;
                 let end = start + bucket_size - 1;
                 format!("{start:010}-{end:010}")
             }
             Self::BySizeCategory => {
-                format!("{:?}", record.ledger_size_category).to_lowercase()
+                // Extract size category from metadata or payload
+                let category = record.metadata.get("size_category")
+                    .map(|s| s.as_str())
+                    .or_else(|| record.payload.get("ledger_size_category").and_then(|v| v.as_str()))
+                    .unwrap_or("unknown");
+                category.to_lowercase()
             }
         };
 
         PartitionKey {
-            strategy: format!("{self:?}").to_lowercase().split('{').next().unwrap_or("partition").trim().into(),
+            strategy: format!("{self:?}")
+                .to_lowercase()
+                .split('{')
+                .next()
+                .unwrap_or("partition")
+                .trim()
+                .into(),
             value,
         }
     }
@@ -61,7 +81,9 @@ impl PartitionStrategy {
     pub fn group<'a>(&self, records: &'a [EtlRecord]) -> HashMap<PartitionKey, Vec<&'a EtlRecord>> {
         let mut map: HashMap<PartitionKey, Vec<&EtlRecord>> = HashMap::new();
         for record in records {
-            map.entry(self.compute_key(record)).or_default().push(record);
+            map.entry(self.compute_key(record))
+                .or_default()
+                .push(record);
         }
         map
     }

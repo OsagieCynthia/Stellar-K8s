@@ -134,10 +134,11 @@ mod snapshot;
 pub mod snapshot_worker;
 pub mod soroban_cache;
 pub mod spot_drain;
-pub mod topology;
+pub mod state_sync;
 pub mod storage_migration;
 pub(crate) mod sync_scale;
 pub(crate) mod sync_state_monitor;
+pub mod topology;
 pub mod traffic;
 #[cfg(test)]
 mod traffic_test;
@@ -213,9 +214,9 @@ pub use snapshot_worker::run_snapshot_worker;
 pub use webhook_delivery::{
     DeliveryRecord, WebhookDeliveryService, WebhookEndpoint, WebhookEvent, WebhookEventType,
 };
+pub mod health_check_sidecar;
 pub mod ml_pipeline;
 pub mod observability_dashboard;
 pub mod observability_pipeline;
 pub mod pvc_autoscaler;
 pub mod resource_optimization;
-pub mod health_check_sidecar;

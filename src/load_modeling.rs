@@ -656,7 +656,10 @@ mod tests {
         };
 
         let controller = LoadModelingController::new(policy, sla);
-        let decision = controller.make_autoscaling_decision(10, 85.0).await.unwrap();
+        let decision = controller
+            .make_autoscaling_decision(10, 85.0)
+            .await
+            .unwrap();
 
         assert_eq!(decision.target_replicas, 2);
         assert!(!decision.sla_maintained);

@@ -26,10 +26,7 @@ impl ApiKey {
     /// Create a new API key, returning both the [`ApiKey`] record and the
     /// raw key string (shown once to the caller).
     pub fn generate(owner: impl Into<String>, scopes: Vec<String>) -> (Self, String) {
-        let raw = format!(
-            "sk_{:x}",
-            rand::random::<u128>()
-        );
+        let raw = format!("sk_{:x}", rand::random::<u128>());
         let key_hash = hex::encode(Sha256::digest(raw.as_bytes()));
         let id = format!("key_{:x}", rand::random::<u64>());
         let key = ApiKey {

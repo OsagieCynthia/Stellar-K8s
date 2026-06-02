@@ -712,8 +712,16 @@ impl StellarNodeSpec {
                     ));
                 }
 
-                if ["data", "config", "tls", "keys", "cloudhsm-socket", "dedicatedhsm-socket", "soroban-cache"]
-                    .contains(&volume.name.as_str())
+                if [
+                    "data",
+                    "config",
+                    "tls",
+                    "keys",
+                    "cloudhsm-socket",
+                    "dedicatedhsm-socket",
+                    "soroban-cache",
+                ]
+                .contains(&volume.name.as_str())
                 {
                     errors.push(SpecValidationError::new(
                         "spec.volumes[].name",
@@ -742,7 +750,10 @@ impl StellarNodeSpec {
                 } else if !seen.insert(mount.name.clone()) {
                     errors.push(SpecValidationError::new(
                         "spec.volumeMounts[].name",
-                        format!("Duplicate volumeMount name '{}' in spec.volumeMounts", mount.name),
+                        format!(
+                            "Duplicate volumeMount name '{}' in spec.volumeMounts",
+                            mount.name
+                        ),
                         "Give each custom volume mount a unique name.",
                     ));
                 } else if !custom_volume_names.contains(&mount.name) {

@@ -28,8 +28,8 @@ use kube::{
 use std::collections::BTreeMap;
 use tracing::{info, instrument, warn};
 
-use crate::crd::{ReadReplicaConfig, StellarNode};
 use super::resources::{merge_service_annotations, merge_service_metadata_labels};
+use crate::crd::{ReadReplicaConfig, StellarNode};
 use crate::error::Result;
 
 // ---------------------------------------------------------------------------
@@ -228,10 +228,8 @@ fn build_read_service(node: &StellarNode) -> Service {
     merge_service_metadata_labels(&mut labels, node);
     let name = service_name(node);
 
-    let mut annotations = BTreeMap::from([(
-        "stellar.org/read-pool".to_string(),
-        "true".to_string(),
-    )]);
+    let mut annotations =
+        BTreeMap::from([("stellar.org/read-pool".to_string(), "true".to_string())]);
     merge_service_annotations(&mut annotations, node);
 
     Service {

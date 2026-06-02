@@ -60,9 +60,15 @@ pub enum PatternKind {
     /// Any single condition fires
     Any,
     /// A condition fires N or more times within the window
-    Threshold { condition: EventCondition, count: usize },
+    Threshold {
+        condition: EventCondition,
+        count: usize,
+    },
     /// A condition fires and then another does NOT fire within the window
-    Absence { trigger: EventCondition, absent: EventCondition },
+    Absence {
+        trigger: EventCondition,
+        absent: EventCondition,
+    },
 }
 
 /// A named CEP pattern
@@ -138,9 +144,7 @@ impl PatternState {
             }
             PatternKind::Sequence => {
                 let conditions = self.pattern.conditions.clone();
-                if self.seq_index < conditions.len()
-                    && conditions[self.seq_index].matches(event)
-                {
+                if self.seq_index < conditions.len() && conditions[self.seq_index].matches(event) {
                     self.seq_index += 1;
                     if self.seq_index == conditions.len() {
                         self.seq_index = 0;
@@ -202,7 +206,10 @@ impl CepEngine {
 
     /// Register a new pattern. Replaces any existing pattern with the same ID.
     pub async fn register_pattern(&self, pattern: CepPattern) {
-        info!("CEP: registering pattern '{}' ({})", pattern.name, pattern.id);
+        info!(
+            "CEP: registering pattern '{}' ({})",
+            pattern.name, pattern.id
+        );
         let mut states = self.states.write().await;
         states.insert(pattern.id.clone(), PatternState::new(pattern));
     }
@@ -212,7 +219,10 @@ impl CepEngine {
         let mut states = self.states.write().await;
         for state in states.values_mut() {
             if let Some(m) = state.feed(event) {
-                debug!("CEP match: pattern='{}' events={:?}", m.pattern_name, m.matched_events);
+                debug!(
+                    "CEP match: pattern='{}' events={:?}",
+                    m.pattern_name, m.matched_events
+                );
                 let _ = self.match_tx.send(m);
             }
         }
@@ -240,7 +250,13 @@ mod tests {
     use crate::event_processing::schema::EventSource;
 
     fn make_event(event_type: &str) -> ProcessingEvent {
-        ProcessingEvent::new(event_type, EventSource::Controller, "agg", "ns", serde_json::json!({}))
+        ProcessingEvent::new(
+            event_type,
+            EventSource::Controller,
+            "agg",
+            "ns",
+            serde_json::json!({}),
+        )
     }
 
     #[tokio::test]

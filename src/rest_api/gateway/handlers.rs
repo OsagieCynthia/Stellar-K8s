@@ -2,16 +2,16 @@
 //!
 //! HTTP handlers for the API Gateway endpoints
 
-use std::sync::Arc;
 use axum::{
     body::Body,
     extract::{Path, Query, State},
     http::{header, Method, StatusCode},
-    response::{Html, IntoResponse, Response, Json},
+    response::{Html, IntoResponse, Json, Response},
     routing::{get, post},
     Router,
 };
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use crate::controller::ControllerState;
@@ -36,44 +36,37 @@ pub fn gateway_routes<S>(state: Arc<GatewayState>) -> Router<S> {
         // Health and info
         .route("/health", get(health))
         .route("/healthz", get(healthz))
-        
         // Gateway management
         .route("/api/v1/gateway/config", get(get_gateway_config))
         .route("/api/v1/gateway/config", post(update_gateway_config))
-        
         // Analytics endpoints
         .route("/api/v1/gateway/analytics/metrics", get(get_metrics))
         .route("/api/v1/gateway/analytics/clients", get(get_client_usage))
         .route("/api/v1/gateway/analytics/recent", get(get_recent_calls))
-        
         // Health endpoint
         .route("/api/v1/gateway/health", get(get_health))
-        
         // Rate limiting
         .route("/api/v1/gateway/ratelimit", get(get_rate_limit_info))
         .route("/api/v1/gateway/ratelimit", post(set_rate_limit))
-        
         // Quota management
         .route("/api/v1/gateway/quota", get(get_quota))
         .route("/api/v1/gateway/quota", post(set_quota))
-        
         // Plugin management
         .route("/api/v1/gateway/plugins", get(list_plugins))
         .route("/api/v1/gateway/plugins/:name/enable", post(enable_plugin))
-        .route("/api/v1/gateway/plugins/:name/disable", post(disable_plugin))
-        
+        .route(
+            "/api/v1/gateway/plugins/:name/disable",
+            post(disable_plugin),
+        )
         // OpenAPI documentation
         .route("/api/v1/gateway/openapi.json", get(get_openapi_spec))
-        
         // Developer portal
         .route("/docs", get(developer_portal))
         .route("/docs/", get(developer_portal))
-        
         // Router management
         .route("/api/v1/gateway/routes", get(list_routes))
         .route("/api/v1/gateway/routes", post(add_route))
         .route("/api/v1/gateway/routes/:path", delete(remove_route))
-        
         .with_state(state)
 }
 
@@ -124,7 +117,10 @@ async fn update_gateway_config(
     Json(_config): Json<GatewayConfig>,
 ) -> impl IntoResponse {
     // In production, validate and apply configuration
-    (StatusCode::OK, Json(serde_json::json!({ "status": "updated" })))
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({ "status": "updated" })),
+    )
 }
 
 // Analytics handlers
@@ -147,9 +143,7 @@ async fn get_metrics(
     Json(metrics)
 }
 
-async fn get_client_usage(
-    State(state): State<Arc<GatewayState>>,
-) -> impl IntoResponse {
+async fn get_client_usage(State(state): State<Arc<GatewayState>>) -> impl IntoResponse {
     let usage = state.analytics.read().await.get_client_usage();
     Json(usage)
 }
@@ -172,9 +166,7 @@ async fn get_recent_calls(
     Json(calls)
 }
 
-async fn get_health(
-    State(state): State<Arc<GatewayState>>,
-) -> impl IntoResponse {
+async fn get_health(State(state): State<Arc<GatewayState>>) -> impl IntoResponse {
     let health = state.analytics.read().await.get_health();
     Json(health)
 }
@@ -206,9 +198,15 @@ async fn set_rate_limit(
             burst_size: rpm / 5,
             ..Default::default()
         };
-        state.rate_limiter.set_custom_limit(&req.client_id, config).await;
+        state
+            .rate_limiter
+            .set_custom_limit(&req.client_id, config)
+            .await;
     }
-    (StatusCode::OK, Json(serde_json::json!({ "status": "updated" })))
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({ "status": "updated" })),
+    )
 }
 
 // Quota handlers
@@ -224,14 +222,18 @@ async fn set_quota(
     State(state): State<Arc<GatewayState>>,
     Json(config): Json<QuotaConfig>,
 ) -> impl IntoResponse {
-    state.quota_manager.set_quota(&config.client_id, config).await;
-    (StatusCode::OK, Json(serde_json::json!({ "status": "updated" })))
+    state
+        .quota_manager
+        .set_quota(&config.client_id, config)
+        .await;
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({ "status": "updated" })),
+    )
 }
 
 // Plugin handlers
-async fn list_plugins(
-    State(state): State<Arc<GatewayState>>,
-) -> impl IntoResponse {
+async fn list_plugins(State(state): State<Arc<GatewayState>>) -> impl IntoResponse {
     let plugins = state.plugin_manager.list_plugins().await;
     Json(plugins)
 }
@@ -241,7 +243,10 @@ async fn enable_plugin(
     Path(name): Path<String>,
 ) -> impl IntoResponse {
     state.plugin_manager.set_enabled(&name, true).await;
-    (StatusCode::OK, Json(serde_json::json!({ "status": "enabled" })))
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({ "status": "enabled" })),
+    )
 }
 
 async fn disable_plugin(
@@ -249,21 +254,28 @@ async fn disable_plugin(
     Path(name): Path<String>,
 ) -> impl IntoResponse {
     state.plugin_manager.set_enabled(&name, false).await;
-    (StatusCode::OK, Json(serde_json::json!({ "status": "disabled" })))
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({ "status": "disabled" })),
+    )
 }
 
 // OpenAPI handler
-async fn get_openapi_spec(
-    State(_state): State<Arc<GatewayState>>,
-) -> impl IntoResponse {
+async fn get_openapi_spec(State(_state): State<Arc<GatewayState>>) -> impl IntoResponse {
     let routes = super::openapi::get_default_routes();
     let doc = OpenApiGenerator::new("Stellar Operator API", "1.0.0")
         .description("Kubernetes Operator API for Stellar Infrastructure")
-        .add_server("https://api.stellar-operator.svc.cluster.local", Some("Kubernetes cluster".to_string()))
-        .add_server("https://localhost:9090", Some("Local development".to_string()))
+        .add_server(
+            "https://api.stellar-operator.svc.cluster.local",
+            Some("Kubernetes cluster".to_string()),
+        )
+        .add_server(
+            "https://localhost:9090",
+            Some("Local development".to_string()),
+        )
         .routes(routes)
         .generate();
-    
+
     (StatusCode::OK, Json(doc))
 }
 
@@ -273,9 +285,7 @@ async fn developer_portal() -> impl IntoResponse {
 }
 
 // Route management
-async fn list_routes(
-    State(state): State<Arc<GatewayState>>,
-) -> impl IntoResponse {
+async fn list_routes(State(state): State<Arc<GatewayState>>) -> impl IntoResponse {
     let routes = state.router.get_routes().await;
     Json(routes)
 }
@@ -293,12 +303,15 @@ async fn add_route(
     Json(req): Json<AddRouteRequest>,
 ) -> impl IntoResponse {
     use super::router::{RouteRule, RouteTarget};
-    
+
     let target = RouteTarget::Internal(req.target);
     let rule = RouteRule::path(&req.path, target);
     state.router.add_route(rule).await;
-    
-    (StatusCode::OK, Json(serde_json::json!({ "status": "added" })))
+
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({ "status": "added" })),
+    )
 }
 
 async fn remove_route(
@@ -306,5 +319,8 @@ async fn remove_route(
     Path(path): Path<String>,
 ) -> impl IntoResponse {
     state.router.remove_route(&path).await;
-    (StatusCode::OK, Json(serde_json::json!({ "status": "removed" })))
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({ "status": "removed" })),
+    )
 }

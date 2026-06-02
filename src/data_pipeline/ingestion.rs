@@ -123,8 +123,7 @@ impl LedgerIngestion {
 
         metrics.last_ledger_sequence = record.sequence;
         metrics.records_ingested += 1;
-        metrics.buffer_utilization_pct =
-            buf.len() as f64 / self.config.buffer_size as f64 * 100.0;
+        metrics.buffer_utilization_pct = buf.len() as f64 / self.config.buffer_size as f64 * 100.0;
 
         debug!(
             sequence = record.sequence,
@@ -185,7 +184,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_ingest_and_drain() {
-        let cfg = StreamConfig { buffer_size: 10, batch_size: 3, ..Default::default() };
+        let cfg = StreamConfig {
+            buffer_size: 10,
+            batch_size: 3,
+            ..Default::default()
+        };
         let ingest = LedgerIngestion::new(cfg);
 
         for i in 1u64..=5 {
@@ -203,7 +206,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_buffer_overflow_drops_oldest() {
-        let cfg = StreamConfig { buffer_size: 3, batch_size: 10, ..Default::default() };
+        let cfg = StreamConfig {
+            buffer_size: 3,
+            batch_size: 10,
+            ..Default::default()
+        };
         let ingest = LedgerIngestion::new(cfg);
 
         for i in 1u64..=5 {

@@ -3,8 +3,8 @@
 //! Defines trigger → action rules. When a [`ProcessingEvent`] matches a
 //! trigger condition the associated [`AutomationAction`] is executed.
 
-use crate::event_processing::schema::ProcessingEvent;
 use crate::event_processing::cep::EventCondition;
+use crate::event_processing::schema::ProcessingEvent;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -57,7 +57,10 @@ struct RuleState {
 
 impl RuleState {
     fn new(rule: AutomationRule) -> Self {
-        Self { rule, fire_times: Vec::new() }
+        Self {
+            rule,
+            fire_times: Vec::new(),
+        }
     }
 
     fn is_rate_limited(&mut self) -> bool {
@@ -131,12 +134,23 @@ impl AutomationExecutor {
         }
     }
 
-    async fn execute_action(&self, rule_name: &str, action: &AutomationAction, trigger: &ProcessingEvent) {
+    async fn execute_action(
+        &self,
+        rule_name: &str,
+        action: &AutomationAction,
+        trigger: &ProcessingEvent,
+    ) {
         match action {
             AutomationAction::Log { message } => {
-                info!("automation[{rule_name}]: {message} (triggered by {})", trigger.event_type);
+                info!(
+                    "automation[{rule_name}]: {message} (triggered by {})",
+                    trigger.event_type
+                );
             }
-            AutomationAction::EmitEvent { event_type, payload } => {
+            AutomationAction::EmitEvent {
+                event_type,
+                payload,
+            } => {
                 info!("automation[{rule_name}]: emitting {event_type}");
                 if let Some(emit) = &self.emit_fn {
                     let ev = ProcessingEvent::new(
@@ -183,7 +197,9 @@ mod tests {
     async fn log_action_fires() {
         let counter = Arc::new(AtomicUsize::new(0));
         let c2 = counter.clone();
-        let emit: EmitFn = Arc::new(move |_| { c2.fetch_add(1, Ordering::SeqCst); });
+        let emit: EmitFn = Arc::new(move |_| {
+            c2.fetch_add(1, Ordering::SeqCst);
+        });
 
         let exec = AutomationExecutor::new(Some(emit));
         exec.register_rule(AutomationRule {

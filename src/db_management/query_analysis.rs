@@ -22,7 +22,11 @@ impl QueryStat {
     /// Cache-hit ratio (0.0 – 1.0)
     pub fn cache_hit_ratio(&self) -> f64 {
         let total = self.shared_blks_hit + self.shared_blks_read;
-        if total == 0 { 1.0 } else { self.shared_blks_hit as f64 / total as f64 }
+        if total == 0 {
+            1.0
+        } else {
+            self.shared_blks_hit as f64 / total as f64
+        }
     }
 }
 
@@ -41,7 +45,9 @@ pub struct QueryAnalyzer {
 
 impl QueryAnalyzer {
     pub fn new(slow_threshold_ms: u64) -> Self {
-        Self { slow_threshold_ms: slow_threshold_ms as f64 }
+        Self {
+            slow_threshold_ms: slow_threshold_ms as f64,
+        }
     }
 
     /// Run analysis against pg_stat_statements. Returns an empty report if the
@@ -92,7 +98,15 @@ impl QueryAnalyzer {
         .await
         .map_err(crate::error::Error::SqlxError)?;
 
-        let to_stat = |(query, calls, total, mean, rows, hit, read): (String, i64, f64, f64, i64, i64, i64)| {
+        let to_stat = |(query, calls, total, mean, rows, hit, read): (
+            String,
+            i64,
+            f64,
+            f64,
+            i64,
+            i64,
+            i64,
+        )| {
             QueryStat {
                 query,
                 calls,

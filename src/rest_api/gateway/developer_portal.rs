@@ -2,7 +2,7 @@
 //!
 //! Interactive API explorer with Swagger UI
 
-pub const DEVELOPER_PORTAL_HTML: &str = r#"<!DOCTYPE html>
+pub const DEVELOPER_PORTAL_HTML: &str = r##"<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -580,4 +580,4 @@ func main() {
         };
     </script>
 </body>
-</html>"#;
+</html>"##;

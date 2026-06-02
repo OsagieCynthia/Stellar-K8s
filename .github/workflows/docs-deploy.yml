@@ -35,10 +35,9 @@ jobs:
           pip install -r requirements.txt
 
       - name: Set up Rust (for cargo doc)
-        uses: actions-rs/toolchain@v1
+        uses: ./.github/actions/setup-rust
         with:
-          toolchain: stable
-          override: true
+          cache-key: "docs-deploy"
 
       - name: Generate Rust API documentation
         run: |

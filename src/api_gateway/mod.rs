@@ -22,7 +22,7 @@ pub mod server;
 pub mod transform;
 pub mod versioning;
 
-pub use config::GatewayConfig;
-pub use server::ApiGateway;
 pub use auth::{ApiKey, ApiKeyStore};
+pub use config::GatewayConfig;
 pub use router::RouteMatch;
+pub use server::ApiGateway;

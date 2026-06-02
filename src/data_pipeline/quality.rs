@@ -38,7 +38,9 @@ pub struct QualityReport {
 
 impl QualityReport {
     pub fn has_critical(&self) -> bool {
-        self.violations.iter().any(|v| v.severity == Severity::Critical)
+        self.violations
+            .iter()
+            .any(|v| v.severity == Severity::Critical)
     }
 }
 
@@ -55,7 +57,11 @@ impl ValidationRule {
         severity: Severity,
         check: impl Fn(&EtlRecord) -> Option<(String, String)> + Send + Sync + 'static,
     ) -> Self {
-        Self { name: name.into(), severity, check: Box::new(check) }
+        Self {
+            name: name.into(),
+            severity,
+            check: Box::new(check),
+        }
     }
 
     pub fn validate(&self, record: &EtlRecord) -> Option<QualityViolation> {
@@ -64,9 +70,49 @@ impl ValidationRule {
             severity: self.severity.clone(),
             field,
             message,
-            record_sequence: record.sequence,
+            record_sequence: record.ledger_seq.unwrap_or(0),
         })
     }
+}
+
+// Helper functions to extract fields from EtlRecord payload
+fn get_sequence(record: &EtlRecord) -> u64 {
+    record.ledger_seq.unwrap_or(0)
+}
+
+fn get_hash(record: &EtlRecord) -> String {
+    record.payload.get("hash")
+        .or_else(|| record.payload.get("ledger_hash"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string()
+}
+
+fn get_base_fee_xlm(record: &EtlRecord) -> f64 {
+    record.payload.get("base_fee_xlm")
+        .or_else(|| record.payload.get("base_fee"))
+        .and_then(|v| v.as_f64())
+        .unwrap_or(0.0)
+}
+
+fn get_tx_success_rate(record: &EtlRecord) -> f64 {
+    record.payload.get("tx_success_rate")
+        .or_else(|| record.payload.get("success_rate"))
+        .and_then(|v| v.as_f64())
+        .unwrap_or(0.0)
+}
+
+fn get_date_partition(record: &EtlRecord) -> String {
+    record.metadata.get("date_partition")
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| record.pipeline_ts.split('T').next().unwrap_or("").to_string())
+}
+
+fn get_avg_ops_per_tx(record: &EtlRecord) -> f64 {
+    record.payload.get("avg_ops_per_tx")
+        .or_else(|| record.payload.get("operations_per_transaction"))
+        .and_then(|v| v.as_f64())
+        .unwrap_or(0.0)
 }
 
 /// Engine that applies all validation rules and produces quality reports
@@ -92,7 +138,8 @@ impl DataQualityEngine {
             "positive_sequence",
             Severity::Critical,
             |r| {
-                if r.sequence == 0 {
+                let sequence = get_sequence(r);
+                if sequence == 0 {
                     Some(("sequence".into(), "Ledger sequence must be > 0".into()))
                 } else {
                     None
@@ -101,66 +148,97 @@ impl DataQualityEngine {
         ));
 
         // Rule 2: hash must be non-empty
-        self.add_rule(ValidationRule::new("non_empty_hash", Severity::Critical, |r| {
-            if r.hash.is_empty() {
-                Some(("hash".into(), "Ledger hash must not be empty".into()))
-            } else {
-                None
-            }
-        }));
+        self.add_rule(ValidationRule::new(
+            "non_empty_hash",
+            Severity::Critical,
+            |r| {
+                let hash = get_hash(r);
+                if hash.is_empty() {
+                    Some(("hash".into(), "Ledger hash must not be empty".into()))
+                } else {
+                    None
+                }
+            },
+        ));
 
         // Rule 3: base fee must be at least 100 stroops (0.00001 XLM)
-        self.add_rule(ValidationRule::new("min_base_fee", Severity::Warning, |r| {
-            if r.base_fee_xlm < 0.000_001 {
-                Some(("base_fee_xlm".into(), format!("Base fee too low: {}", r.base_fee_xlm)))
-            } else {
-                None
-            }
-        }));
+        self.add_rule(ValidationRule::new(
+            "min_base_fee",
+            Severity::Warning,
+            |r| {
+                let base_fee = get_base_fee_xlm(r);
+                if base_fee < 0.000_001 {
+                    Some((
+                        "base_fee_xlm".into(),
+                        format!("Base fee too low: {}", base_fee),
+                    ))
+                } else {
+                    None
+                }
+            },
+        ));
 
         // Rule 4: success rate must be in [0,1]
-        self.add_rule(ValidationRule::new("valid_success_rate", Severity::Error, |r| {
-            if !(0.0..=1.0).contains(&r.tx_success_rate) {
-                Some((
-                    "tx_success_rate".into(),
-                    format!("Success rate out of range: {}", r.tx_success_rate),
-                ))
-            } else {
-                None
-            }
-        }));
+        self.add_rule(ValidationRule::new(
+            "valid_success_rate",
+            Severity::Error,
+            |r| {
+                let success_rate = get_tx_success_rate(r);
+                if !(0.0..=1.0).contains(&success_rate) {
+                    Some((
+                        "tx_success_rate".into(),
+                        format!("Success rate out of range: {}", success_rate),
+                    ))
+                } else {
+                    None
+                }
+            },
+        ));
 
         // Rule 5: date partition must match YYYY-MM-DD
-        self.add_rule(ValidationRule::new("date_partition_format", Severity::Error, |r| {
-            let valid = r.date_partition.len() == 10
-                && r.date_partition.chars().nth(4) == Some('-')
-                && r.date_partition.chars().nth(7) == Some('-');
-            if !valid {
-                Some((
-                    "date_partition".into(),
-                    format!("Invalid date partition format: {}", r.date_partition),
-                ))
-            } else {
-                None
-            }
-        }));
+        self.add_rule(ValidationRule::new(
+            "date_partition_format",
+            Severity::Error,
+            |r| {
+                let date_partition = get_date_partition(r);
+                let valid = date_partition.len() == 10
+                    && date_partition.chars().nth(4) == Some('-')
+                    && date_partition.chars().nth(7) == Some('-');
+                if !valid {
+                    Some((
+                        "date_partition".into(),
+                        format!("Invalid date partition format: {}", date_partition),
+                    ))
+                } else {
+                    None
+                }
+            },
+        ));
 
         // Rule 6: avg ops per tx should not exceed 100 (sanity check)
-        self.add_rule(ValidationRule::new("ops_per_tx_sanity", Severity::Warning, |r| {
-            if r.avg_ops_per_tx > 100.0 {
-                Some((
-                    "avg_ops_per_tx".into(),
-                    format!("Unusually high ops/tx: {:.1}", r.avg_ops_per_tx),
-                ))
-            } else {
-                None
-            }
-        }));
+        self.add_rule(ValidationRule::new(
+            "ops_per_tx_sanity",
+            Severity::Warning,
+            |r| {
+                let avg_ops = get_avg_ops_per_tx(r);
+                if avg_ops > 100.0 {
+                    Some((
+                        "avg_ops_per_tx".into(),
+                        format!("Unusually high ops/tx: {:.1}", avg_ops),
+                    ))
+                } else {
+                    None
+                }
+            },
+        ));
     }
 
     /// Validate a single record
     pub fn validate(&self, record: &EtlRecord) -> Vec<QualityViolation> {
-        self.rules.iter().filter_map(|r| r.validate(record)).collect()
+        self.rules
+            .iter()
+            .filter_map(|r| r.validate(record))
+            .collect()
     }
 
     /// Validate a batch and produce a summary report
@@ -177,7 +255,10 @@ impl DataQualityEngine {
             } else {
                 report.failed += 1;
                 for v in &violations {
-                    *report.violation_counts_by_rule.entry(v.rule_name.clone()).or_insert(0) += 1;
+                    *report
+                        .violation_counts_by_rule
+                        .entry(v.rule_name.clone())
+                        .or_insert(0) += 1;
                 }
                 report.violations.extend(violations);
             }
@@ -191,7 +272,11 @@ impl DataQualityEngine {
 
         if report.has_critical() {
             warn!(
-                critical_violations = report.violations.iter().filter(|v| v.severity == Severity::Critical).count(),
+                critical_violations = report
+                    .violations
+                    .iter()
+                    .filter(|v| v.severity == Severity::Critical)
+                    .count(),
                 "Critical data quality violations detected"
             );
         }
@@ -246,7 +331,9 @@ mod tests {
         let mut r = good_record(1);
         r.tx_success_rate = 1.5;
         let violations = engine.validate(&r);
-        assert!(violations.iter().any(|v| v.rule_name == "valid_success_rate"));
+        assert!(violations
+            .iter()
+            .any(|v| v.rule_name == "valid_success_rate"));
     }
 
     #[test]

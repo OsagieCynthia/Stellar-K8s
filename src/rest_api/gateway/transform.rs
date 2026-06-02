@@ -3,15 +3,11 @@
 //! Provides flexible transformation of HTTP requests and responses
 //! including header manipulation, body mapping, and protocol translation.
 
-use std::collections::HashMap;
-use std::sync::Arc;
-use axum::{
-    body::Body,
-    extract::Request,
-    response::Response,
-};
+use axum::{body::Body, extract::Request, response::Response};
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::sync::Arc;
 use tokio::sync::RwLock;
 
 /// Transformation rule types
@@ -60,10 +56,8 @@ impl TransformRule {
         match self {
             TransformRule::AddHeaders(headers) => {
                 for (key, value) in headers {
-                    req.headers_mut().insert(
-                        key.as_str().parse().unwrap(),
-                        value.parse().unwrap(),
-                    );
+                    req.headers_mut()
+                        .insert(key.as_str().parse().unwrap(), value.parse().unwrap());
                 }
             }
             TransformRule::RemoveHeaders(names) => {
@@ -134,10 +128,8 @@ impl TransformRule {
         match self {
             TransformRule::AddHeaders(headers) => {
                 for (key, value) in headers {
-                    res.headers_mut().insert(
-                        key.as_str().parse().unwrap(),
-                        value.parse().unwrap(),
-                    );
+                    res.headers_mut()
+                        .insert(key.as_str().parse().unwrap(), value.parse().unwrap());
                 }
             }
             TransformRule::RemoveHeaders(names) => {
@@ -158,7 +150,9 @@ impl TransformRule {
                 *res.status_mut() = StatusCode::from_u16(*code).unwrap_or(StatusCode::OK);
             }
             TransformRule::TransformBody(transform) => {
-                let body = hyper::body::to_bytes(res.body_mut()).await.unwrap_or_default();
+                let body = hyper::body::to_bytes(res.body_mut())
+                    .await
+                    .unwrap_or_default();
                 if let Ok(new_body) = transform_json(&body, transform) {
                     *res.body_mut() = Body::from(new_body);
                 }
@@ -171,8 +165,8 @@ impl TransformRule {
 
 /// Transform JSON body based on transform type
 fn transform_json(body: &[u8], transform: &BodyTransform) -> Result<Bytes, String> {
-    let json: serde_json::Value = serde_json::from_slice(body)
-        .map_err(|e| format!("Failed to parse JSON: {}", e))?;
+    let json: serde_json::Value =
+        serde_json::from_slice(body).map_err(|e| format!("Failed to parse JSON: {}", e))?;
 
     let result = match transform {
         BodyTransform::Wrap { field } => {
@@ -182,16 +176,12 @@ fn transform_json(body: &[u8], transform: &BodyTransform) -> Result<Bytes, Strin
             // Simple JSONPath-like extraction (supports dot notation)
             extract_json_path(&json, path)
         }
-        BodyTransform::Flatten => {
-            flatten_json(json)
-        }
+        BodyTransform::Flatten => flatten_json(json),
         BodyTransform::Convert(_) => {
             // Format conversion placeholder
             json
         }
-        BodyTransform::RemoveFields(fields) => {
-            remove_json_fields(&json, fields)
-        }
+        BodyTransform::RemoveFields(fields) => remove_json_fields(&json, fields),
         BodyTransform::AddFields(add_fields) => {
             let mut result = json.clone();
             for (key, value) in add_fields {
@@ -201,7 +191,9 @@ fn transform_json(body: &[u8], transform: &BodyTransform) -> Result<Bytes, Strin
         }
     };
 
-    serde_json::to_vec(&result).map(Bytes::from).map_err(|e| e.to_string())
+    serde_json::to_vec(&result)
+        .map(Bytes::from)
+        .map_err(|e| e.to_string())
 }
 
 /// Extract value from JSON using dot notation path
@@ -342,19 +334,19 @@ impl TransformPipeline {
     /// Create pipeline from configuration
     pub fn from_config(config: &TransformConfig) -> Self {
         let mut pipeline = Self::new();
-        
+
         for rule_config in &config.request_transforms {
             if let Some(rule) = parse_rule_config(&rule_config.rule_type, &rule_config.config) {
                 pipeline.add_request_rule(rule);
             }
         }
-        
+
         for rule_config in &config.response_transforms {
             if let Some(rule) = parse_rule_config(&rule_config.rule_type, &rule_config.config) {
                 pipeline.add_response_rule(rule);
             }
         }
-        
+
         pipeline
     }
 }
@@ -363,8 +355,7 @@ impl TransformPipeline {
 fn parse_rule_config(rule_type: &str, config: &serde_json::Value) -> Option<TransformRule> {
     match rule_type {
         "add_headers" => {
-            let headers: HashMap<String, String> = 
-                serde_json::from_value(config.clone()).ok()?;
+            let headers: HashMap<String, String> = serde_json::from_value(config.clone()).ok()?;
             Some(TransformRule::AddHeaders(headers))
         }
         "remove_headers" => {
@@ -377,8 +368,7 @@ fn parse_rule_config(rule_type: &str, config: &serde_json::Value) -> Option<Tran
             Some(TransformRule::MapPath { from, to })
         }
         "add_query_params" => {
-            let params: HashMap<String, String> = 
-                serde_json::from_value(config.clone()).ok()?;
+            let params: HashMap<String, String> = serde_json::from_value(config.clone()).ok()?;
             Some(TransformRule::AddQueryParams(params))
         }
         "wrap" => {
@@ -391,7 +381,9 @@ fn parse_rule_config(rule_type: &str, config: &serde_json::Value) -> Option<Tran
         }
         "remove_fields" => {
             let fields: Vec<String> = serde_json::from_value(config.clone()).ok()?;
-            Some(TransformRule::TransformBody(BodyTransform::RemoveFields(fields)))
+            Some(TransformRule::TransformBody(BodyTransform::RemoveFields(
+                fields,
+            )))
         }
         _ => None,
     }
@@ -404,15 +396,15 @@ mod tests {
     #[test]
     fn test_transform_pipeline() {
         let mut pipeline = TransformPipeline::new();
-        
+
         pipeline.add_request_rule(TransformRule::AddHeaders({
             let mut h = HashMap::new();
             h.insert("X-Custom-Header".to_string(), "value".to_string());
             h
         }));
-        
+
         pipeline.add_response_rule(TransformRule::RemoveHeaders(vec!["x-internal".to_string()]));
-        
+
         assert_eq!(pipeline.request_rule_count(), 1);
         assert_eq!(pipeline.response_rule_count(), 1);
     }
@@ -426,7 +418,7 @@ mod tests {
             },
             "active": true
         });
-        
+
         let flattened = flatten_json(json);
         assert_eq!(flattened.get("user.name").unwrap(), "John");
         assert_eq!(flattened.get("user.email").unwrap(), "john@example.com");
@@ -442,7 +434,7 @@ mod tests {
                 }
             }
         });
-        
+
         let result = extract_json_path(&json, "user.profile.name");
         assert_eq!(result, "John");
     }

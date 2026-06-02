@@ -2,7 +2,7 @@ name: Security Scanning
 
 on:
   push:
-    branches: [main, develop]
+    branches: [develop]
     paths:
       - "**.rs"
       - "**.yaml"
@@ -10,8 +10,9 @@ on:
       - "charts/**"
       - "Dockerfile*"
       - "Makefile"
-  pull_request:
-    branches: [main]
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
 
 concurrency:
   group: security-scan-${{ github.ref }}

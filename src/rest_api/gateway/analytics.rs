@@ -8,10 +8,10 @@
 //! - Client statistics
 //! - API health monitoring
 
+use chrono::{DateTime, Duration as ChronoDuration, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
-use chrono::{DateTime, Utc, Duration as ChronoDuration};
-use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 use tokio::time::{interval, Duration};
 
@@ -162,7 +162,7 @@ impl Analytics {
     /// Record an API call
     pub fn record_call(&mut self, call: ApiCall) {
         self.total_calls += 1;
-        
+
         if call.status >= 400 || call.status == 0 {
             self.total_errors += 1;
         }
@@ -174,14 +174,17 @@ impl Analytics {
         self.calls.push_back(call.clone());
 
         // Update client stats
-        let client = self.client_stats.entry(call.client_id.clone()).or_insert_with(|| ClientStats {
-            client_id: call.client_id.clone(),
-            requests: 0,
-            errors: 0,
-            total_latency_ms: 0,
-            first_seen: call.timestamp,
-            last_seen: call.timestamp,
-        });
+        let client = self
+            .client_stats
+            .entry(call.client_id.clone())
+            .or_insert_with(|| ClientStats {
+                client_id: call.client_id.clone(),
+                requests: 0,
+                errors: 0,
+                total_latency_ms: 0,
+                first_seen: call.timestamp,
+                last_seen: call.timestamp,
+            });
         client.requests += 1;
         client.total_latency_ms += call.latency_ms;
         if call.status >= 400 {
@@ -190,13 +193,16 @@ impl Analytics {
         client.last_seen = call.timestamp;
 
         // Update path stats
-        let path = self.path_stats.entry(call.path.clone()).or_insert_with(|| PathStats {
-            path: call.path.clone(),
-            requests: 0,
-            errors: 0,
-            total_latency_ms: 0,
-            status_codes: HashMap::new(),
-        });
+        let path = self
+            .path_stats
+            .entry(call.path.clone())
+            .or_insert_with(|| PathStats {
+                path: call.path.clone(),
+                requests: 0,
+                errors: 0,
+                total_latency_ms: 0,
+                status_codes: HashMap::new(),
+            });
         path.requests += 1;
         path.total_latency_ms += call.latency_ms;
         if call.status >= 400 {
@@ -208,22 +214,21 @@ impl Analytics {
     /// Get metrics for a time window
     pub fn get_window_metrics(&self, window: Duration) -> TimeWindowMetrics {
         let now = Utc::now();
-        let window_start = now - ChronoDuration::from_std(window).unwrap_or(ChronoDuration::days(1));
-        
-        let mut calls_in_window: Vec<&ApiCall> = self.calls.iter()
+        let window_start =
+            now - ChronoDuration::from_std(window).unwrap_or(ChronoDuration::days(1));
+
+        let mut calls_in_window: Vec<&ApiCall> = self
+            .calls
+            .iter()
             .filter(|c| c.timestamp >= window_start)
             .collect();
 
         let total_requests = calls_in_window.len() as u64;
-        let successful_requests = calls_in_window.iter()
-            .filter(|c| c.status < 400)
-            .count() as u64;
+        let successful_requests = calls_in_window.iter().filter(|c| c.status < 400).count() as u64;
         let failed_requests = total_requests - successful_requests;
 
-        let total_latency: u64 = calls_in_window.iter()
-            .map(|c| c.latency_ms)
-            .sum();
-        
+        let total_latency: u64 = calls_in_window.iter().map(|c| c.latency_ms).sum();
+
         let avg_latency = if total_requests > 0 {
             total_latency as f64 / total_requests as f64
         } else {
@@ -231,11 +236,9 @@ impl Analytics {
         };
 
         // Calculate percentiles
-        let mut latencies: Vec<u64> = calls_in_window.iter()
-            .map(|c| c.latency_ms)
-            .collect();
+        let mut latencies: Vec<u64> = calls_in_window.iter().map(|c| c.latency_ms).collect();
         latencies.sort();
-        
+
         let p50 = percentile(&latencies, 50);
         let p90 = percentile(&latencies, 90);
         let p99 = percentile(&latencies, 99);
@@ -256,12 +259,21 @@ impl Analytics {
                 entry.2 += 1;
             }
         }
-        let mut top_paths: Vec<PathMetrics> = path_map.into_iter()
+        let mut top_paths: Vec<PathMetrics> = path_map
+            .into_iter()
             .map(|(path, (requests, latency, errors))| PathMetrics {
                 path,
                 requests,
-                avg_latency_ms: if requests > 0 { latency as f64 / requests as f64 } else { 0.0 },
-                error_rate: if requests > 0 { errors as f64 / requests as f64 } else { 0.0 },
+                avg_latency_ms: if requests > 0 {
+                    latency as f64 / requests as f64
+                } else {
+                    0.0
+                },
+                error_rate: if requests > 0 {
+                    errors as f64 / requests as f64
+                } else {
+                    0.0
+                },
             })
             .collect();
         top_paths.sort_by(|a, b| b.requests.cmp(&a.requests));
@@ -270,19 +282,30 @@ impl Analytics {
         // Top clients
         let mut client_map: HashMap<String, (u64, u64, u64)> = HashMap::new();
         for call in &calls_in_window {
-            let entry = client_map.entry(call.client_id.clone()).or_insert((0, 0, 0));
+            let entry = client_map
+                .entry(call.client_id.clone())
+                .or_insert((0, 0, 0));
             entry.0 += 1;
             entry.1 += call.latency_ms;
             if call.status >= 400 {
                 entry.2 += 1;
             }
         }
-        let mut top_clients: Vec<ClientMetrics> = client_map.into_iter()
+        let mut top_clients: Vec<ClientMetrics> = client_map
+            .into_iter()
             .map(|(client_id, (requests, latency, errors))| ClientMetrics {
                 client_id,
                 requests,
-                avg_latency_ms: if requests > 0 { latency as f64 / requests as f64 } else { 0.0 },
-                error_rate: if requests > 0 { errors as f64 / requests as f64 } else { 0.0 },
+                avg_latency_ms: if requests > 0 {
+                    latency as f64 / requests as f64
+                } else {
+                    0.0
+                },
+                error_rate: if requests > 0 {
+                    errors as f64 / requests as f64
+                } else {
+                    0.0
+                },
             })
             .collect();
         top_clients.sort_by(|a, b| b.requests.cmp(&a.requests));
@@ -320,7 +343,8 @@ impl Analytics {
 
     /// Get client usage statistics
     pub fn get_client_usage(&self) -> Vec<ClientUsage> {
-        self.client_stats.values()
+        self.client_stats
+            .values()
             .map(|stats| ClientUsage {
                 client_id: stats.client_id.clone(),
                 first_seen: stats.first_seen,
@@ -341,7 +365,7 @@ impl Analytics {
     pub fn get_health(&self) -> ApiHealth {
         let window = Duration::from_secs(60);
         let metrics = self.get_window_metrics(window);
-        
+
         let status = if metrics.error_rate < 0.01 && metrics.avg_latency_ms < 1000.0 {
             HealthStatus::Healthy
         } else if metrics.error_rate < 0.05 && metrics.avg_latency_ms < 3000.0 {
@@ -351,7 +375,7 @@ impl Analytics {
         };
 
         let uptime = Utc::now() - self.start_time;
-        
+
         ApiHealth {
             status,
             uptime_seconds: uptime.num_seconds() as u64,
@@ -366,11 +390,7 @@ impl Analytics {
 
     /// Get recent calls
     pub fn get_recent_calls(&self, limit: usize) -> Vec<ApiCall> {
-        self.calls.iter()
-            .rev()
-            .take(limit)
-            .cloned()
-            .collect()
+        self.calls.iter().rev().take(limit).cloned().collect()
     }
 
     /// Get total calls count
@@ -429,24 +449,24 @@ impl GatewayMetrics {
                 "gateway_total_errors",
                 "Total number of errors processed by the gateway",
             ),
-            requests_by_method: prometheus_client::metrics::family::Family::new(
-                |labels| prometheus_client::metrics::counter::Counter::new(
+            requests_by_method: prometheus_client::metrics::family::Family::new(|labels| {
+                prometheus_client::metrics::counter::Counter::new(
                     "gateway_requests_total",
                     "Total requests by HTTP method",
-                ),
-            ),
-            requests_by_status: prometheus_client::metrics::family::Family::new(
-                |labels| prometheus_client::metrics::counter::Counter::new(
+                )
+            }),
+            requests_by_status: prometheus_client::metrics::family::Family::new(|labels| {
+                prometheus_client::metrics::counter::Counter::new(
                     "gateway_responses_total",
                     "Total responses by status code",
-                ),
-            ),
-            requests_by_path: prometheus_client::metrics::family::Family::new(
-                |labels| prometheus_client::metrics::counter::Counter::new(
+                )
+            }),
+            requests_by_path: prometheus_client::metrics::family::Family::new(|labels| {
+                prometheus_client::metrics::counter::Counter::new(
                     "gateway_path_requests_total",
                     "Total requests by path",
-                ),
-            ),
+                )
+            }),
             latency_histogram: prometheus_client::metrics::histogram::Histogram::new(
                 "gateway_request_duration_seconds",
                 "Request duration in seconds",
@@ -458,15 +478,13 @@ impl GatewayMetrics {
     /// Record a request
     pub fn record_request(&self, call: &ApiCall) {
         self.total_requests.inc();
-        
-        let method_label = prometheus_client::metrics::family::MetricLabel::new(
-            "method", call.method.clone()
-        );
+
+        let method_label =
+            prometheus_client::metrics::family::MetricLabel::new("method", call.method.clone());
         self.requests_by_method.get_or_create(&[method_label]).inc();
 
-        let status_label = prometheus_client::metrics::family::MetricLabel::new(
-            "status", call.status.to_string()
-        );
+        let status_label =
+            prometheus_client::metrics::family::MetricLabel::new("status", call.status.to_string());
         self.requests_by_status.get_or_create(&[status_label]).inc();
 
         if call.status >= 400 {
@@ -500,7 +518,7 @@ mod tests {
     #[test]
     fn test_analytics_record() {
         let mut analytics = Analytics::new();
-        
+
         analytics.record_call(ApiCall {
             timestamp: Utc::now(),
             path: "/api/users".to_string(),
@@ -521,7 +539,7 @@ mod tests {
     #[test]
     fn test_analytics_errors() {
         let mut analytics = Analytics::new();
-        
+
         analytics.record_call(ApiCall {
             timestamp: Utc::now(),
             path: "/api/users".to_string(),

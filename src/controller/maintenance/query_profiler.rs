@@ -6,7 +6,8 @@
 
 use crate::error::Result;
 use regex::Regex;
-use sqlx::{PgPool, PgRow, Row};
+use sqlx::postgres::PgRow;
+use sqlx::{PgPool, Row};
 
 /// A slow query candidate from `pg_stat_statements`.
 pub struct SlowQuery {
@@ -53,7 +54,9 @@ impl QueryProfiler {
             Err(e) => {
                 if let sqlx::Error::Database(db_err) = &e {
                     let msg = db_err.message().to_lowercase();
-                    if msg.contains("pg_stat_statements") || msg.contains("relation \"pg_stat_statements\"") {
+                    if msg.contains("pg_stat_statements")
+                        || msg.contains("relation \"pg_stat_statements\"")
+                    {
                         return Ok(Vec::new());
                     }
                 }
@@ -66,7 +69,11 @@ impl QueryProfiler {
             let query_text: String = row.try_get("query")?;
             let calls: i64 = row.try_get("calls")?;
             let total_ms: f64 = row.try_get("total_time")?;
-            let avg_ms = if calls > 0 { total_ms / calls as f64 } else { 0.0 };
+            let avg_ms = if calls > 0 {
+                total_ms / calls as f64
+            } else {
+                0.0
+            };
             slow_queries.push(SlowQuery {
                 query: query_text,
                 calls,
@@ -81,7 +88,9 @@ impl QueryProfiler {
     /// Analyze slow queries and suggest indexes for equality filters.
     pub fn recommend_indexes(&self, slow_queries: &[SlowQuery]) -> Vec<IndexSuggestion> {
         let table_re = Regex::new(r"(?i)\bFROM\s+([a-zA-Z_][\w\.]*)(?:\s|$)").unwrap();
-        let equality_re = Regex::new(r"(?i)(?:WHERE|AND|OR)\s+([a-zA-Z_][\w\.]*)\s*=\s*[$]?[0-9]+(?:\b|\s)").unwrap();
+        let equality_re =
+            Regex::new(r"(?i)(?:WHERE|AND|OR)\s+([a-zA-Z_][\w\.]*)\s*=\s*[$]?[0-9]+(?:\b|\s)")
+                .unwrap();
 
         let mut suggestions = Vec::new();
         let mut seen = std::collections::HashSet::new();
@@ -94,11 +103,7 @@ impl QueryProfiler {
                     for cap in equality_re.captures_iter(&query.query) {
                         if let Some(col_match) = cap.get(1) {
                             let column = col_match.as_str();
-                            let column = column
-                                .split('.')
-                                .last()
-                                .unwrap_or(column)
-                                .to_string();
+                            let column = column.split('.').last().unwrap_or(column).to_string();
                             if !columns.contains(&column) {
                                 columns.push(column);
                             }
@@ -107,11 +112,8 @@ impl QueryProfiler {
                     if !columns.is_empty() {
                         let key = format!("{}:{}", table, columns.join(","));
                         if seen.insert(key.clone()) {
-                            let index_name = format!(
-                                "idx_{}_{}",
-                                table.replace('.', "_"),
-                                columns.join("_")
-                            );
+                            let index_name =
+                                format!("idx_{}_{}", table.replace('.', "_"), columns.join("_"));
                             suggestions.push(IndexSuggestion {
                                 table,
                                 columns,
@@ -153,7 +155,9 @@ mod tests {
 
     #[test]
     fn recommend_indexes_parses_where_clauses() {
-        let profiler = QueryProfiler { pool: PgPool::connect_lazy("postgres://localhost/test") };
+        let profiler = QueryProfiler {
+            pool: PgPool::connect_lazy("postgres://localhost/test"),
+        };
         let query = SlowQuery {
             query: "SELECT * FROM payments WHERE payment_id = $1 AND ledger_seq = $2".into(),
             calls: 10,
@@ -165,7 +169,12 @@ mod tests {
         assert_eq!(suggestions.len(), 1);
         let suggestion = &suggestions[0];
         assert_eq!(suggestion.table, "payments");
-        assert_eq!(suggestion.columns, vec!["payment_id".to_string(), "ledger_seq".to_string()]);
-        assert!(suggestion.index_name.starts_with("idx_payments_payment_id_ledger_seq"));
+        assert_eq!(
+            suggestion.columns,
+            vec!["payment_id".to_string(), "ledger_seq".to_string()]
+        );
+        assert!(suggestion
+            .index_name
+            .starts_with("idx_payments_payment_id_ledger_seq"));
     }
 }

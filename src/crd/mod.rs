@@ -70,10 +70,10 @@ pub mod traffic_policy;
 pub mod types;
 
 // New Epic CRDs (Wave 5)
-pub mod stellar_gitops;
 pub mod stellar_aiops;
-pub mod stellar_security;
 pub mod stellar_disaster_recovery;
+pub mod stellar_gitops;
+pub mod stellar_security;
 
 #[cfg(test)]
 mod tests;
@@ -102,9 +102,9 @@ pub use service_mesh::{
     ServiceMeshConfig,
 };
 pub use stellar_autoscaler::{
-    CanaryStrategy, CostAwareConfig, MetricType, PredictionModel, PredictiveScalingConfig,
-    ScalingPolicy, ScalingStrategy, StellarAutoscaler, StellarAutoscalerSpec,
-    StellarAutoscalerStatus, StellarMetric,
+    CostAwareConfig, MetricType, PredictionModel, PredictiveScalingConfig, ScalingPolicy,
+    ScalingStrategy, StellarAutoscaler, StellarAutoscalerSpec, StellarAutoscalerStatus,
+    StellarMetric,
 };
 pub use stellar_benchmark::{
     BenchmarkConfig, BenchmarkMetrics, BenchmarkPhase, BenchmarkReport, BenchmarkReportSpec,
@@ -117,7 +117,7 @@ pub use stellar_federation::{
     StellarFederationSpec, StellarFederationStatus, TrafficRoutingPolicy,
 };
 pub use stellar_network_policy::{
-    AllowedDestination, Condition, DNSRule, EgressRule, GRPCRule, HTTPRule, HeaderMatch, IPBlock,
+    AllowedDestination, Condition as NetworkPolicyCondition, DNSRule, EgressRule, GRPCRule, HTTPRule, HeaderMatch, IPBlock,
     IngressRule, L7Rule, LabelSelector, LabelSelectorRequirement, MetadataMatch, NetworkPolicyPeer,
     NetworkPolicyPort, SegmentSelector, StellarNetworkPolicy, StellarNetworkPolicySpec,
     StellarNetworkPolicyStatus, StellarNetworkSegment, StellarNetworkSegmentSpec,
@@ -151,23 +151,24 @@ pub use traffic_policy::{
 pub use types::*;
 
 // Epic CRD exports (Wave 5)
+pub use stellar_aiops::{
+    AnomalyDetectionConfig as AIOpsAnomalyDetectionConfig, AutomatedRemediationConfig,
+    CapacityPlanningConfig, ChatOpsConfig, OperationalStatus, PredictiveMaintenanceConfig,
+    RootCauseAnalysisConfig, SlackIntegration, StellarAIOps, StellarAIOpsSpec, StellarAIOpsStatus,
+    TeamsIntegration,
+};
+pub use stellar_disaster_recovery::{
+    BackupDestination, DrillStatus, EncryptionConfig, RestorePhase, RetentionPolicy, StellarBackup,
+    StellarBackupSpec, StellarBackupStatus, StellarDRDrill, StellarDRDrillSpec,
+    StellarDRDrillStatus, StellarRestore, StellarRestoreSpec, StellarRestoreStatus,
+};
 pub use stellar_gitops::{
     ArgoCDConfig, ArgoCDSyncPolicy, FluxCDConfig, GitOpsProvider, ProgressiveDeliveryConfig,
     StellarGitOpsConfig, StellarGitOpsConfigSpec, StellarGitOpsConfigStatus, SyncStatus,
 };
-pub use stellar_aiops::{
-    AnomalyDetectionConfig, AutomatedRemediationConfig, CapacityPlanningConfig, ChatOpsConfig,
-    OperationalStatus, PredictiveMaintenanceConfig, RootCauseAnalysisConfig, SlackIntegration,
-    StellarAIOps, StellarAIOpsSpec, StellarAIOpsStatus, TeamsIntegration,
-};
 pub use stellar_security::{
-    AutomatedScanningConfig, ComplianceFramework, ComplianceStatus, NetworkPoliciesConfig,
-    PodSecurityLevel, PodSecurityStandardsConfig, RBACConfig, SecretManagementConfig,
-    SecretProvider, SecurityMonitoringConfig, StellarSecurityPolicy, StellarSecurityPolicySpec,
-    StellarSecurityPolicyStatus,
-};
-pub use stellar_disaster_recovery::{
-    BackupDestination, EncryptionConfig, RetentionPolicy, StellarBackup, StellarBackupSpec,
-    StellarBackupStatus, StellarRestore, StellarRestoreSpec, StellarRestoreStatus, StellarDRDrill,
-    StellarDRDrillSpec, StellarDRDrillStatus, DrillStatus, RestorePhase,
+    AutomatedScanningConfig, ComplianceFramework, ComplianceStatus as SecurityComplianceStatus,
+    NetworkPoliciesConfig, PodSecurityLevel, PodSecurityStandardsConfig, RBACConfig,
+    SecretManagementConfig, SecretProvider, SecurityMonitoringConfig, StellarSecurityPolicy,
+    StellarSecurityPolicySpec, StellarSecurityPolicyStatus,
 };

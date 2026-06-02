@@ -81,27 +81,60 @@ impl DashboardSnapshot {
             HealthStatus::Critical => "CRITICAL",
         };
 
-        let alert_rows: String = self.all_alerts.iter().map(|a| {
-            let color = match a.level { HealthStatus::Critical => "#ffebee", HealthStatus::Warning => "#fff8e1", HealthStatus::Healthy => "#e8f5e9" };
-            format!("<tr style='background:{color}'><td>{}</td><td>{}</td><td>{}</td></tr>",
-                match a.level { HealthStatus::Critical => "🔴 CRITICAL", HealthStatus::Warning => "🟡 WARNING", HealthStatus::Healthy => "🟢 OK" },
-                a.subsystem, a.message)
-        }).collect();
+        let alert_rows: String = self
+            .all_alerts
+            .iter()
+            .map(|a| {
+                let color = match a.level {
+                    HealthStatus::Critical => "#ffebee",
+                    HealthStatus::Warning => "#fff8e1",
+                    HealthStatus::Healthy => "#e8f5e9",
+                };
+                format!(
+                    "<tr style='background:{color}'><td>{}</td><td>{}</td><td>{}</td></tr>",
+                    match a.level {
+                        HealthStatus::Critical => "🔴 CRITICAL",
+                        HealthStatus::Warning => "🟡 WARNING",
+                        HealthStatus::Healthy => "🟢 OK",
+                    },
+                    a.subsystem,
+                    a.message
+                )
+            })
+            .collect();
 
-        let slow_rows: String = self.query.top_slow_queries.iter().take(5).map(|q| {
-            format!("<tr><td>{:.0}ms</td><td>{}</td><td>{}</td></tr>",
-                q.mean_exec_time_ms, q.calls,
-                q.query.chars().take(100).collect::<String>())
-        }).collect();
+        let slow_rows: String = self
+            .query
+            .top_slow_queries
+            .iter()
+            .take(5)
+            .map(|q| {
+                format!(
+                    "<tr><td>{:.0}ms</td><td>{}</td><td>{}</td></tr>",
+                    q.mean_exec_time_ms,
+                    q.calls,
+                    q.query.chars().take(100).collect::<String>()
+                )
+            })
+            .collect();
 
         let pool_stats = &self.pool.stats;
-        let repl_rows: String = self.replication.replicas.iter().map(|r| {
-            format!("<tr><td>{}</td><td>{}</td><td>{:.0}ms</td></tr>",
-                r.application_name, r.state,
-                r.replay_lag_ms.unwrap_or(0.0))
-        }).collect();
+        let repl_rows: String = self
+            .replication
+            .replicas
+            .iter()
+            .map(|r| {
+                format!(
+                    "<tr><td>{}</td><td>{}</td><td>{:.0}ms</td></tr>",
+                    r.application_name,
+                    r.state,
+                    r.replay_lag_ms.unwrap_or(0.0)
+                )
+            })
+            .collect();
 
-        format!(r#"<!DOCTYPE html>
+        format!(
+            r#"<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
@@ -167,7 +200,11 @@ impl DashboardSnapshot {
             alert_rows = alert_rows,
             slow_rows = slow_rows,
             repl_rows = repl_rows,
-            role = if self.replication.is_primary { "Primary" } else { "Replica" },
+            role = if self.replication.is_primary {
+                "Primary"
+            } else {
+                "Replica"
+            },
             lsn = self.backup.current_lsn,
             wal_level = self.backup.wal_level,
             archive_mode = self.backup.archive_mode,
@@ -190,12 +227,51 @@ mod tests {
     fn empty_snapshot() -> DashboardSnapshot {
         DashboardSnapshot::new(
             &DbTarget::Horizon,
-            QueryAnalysisReport { analyzed_at: Utc::now(), top_slow_queries: vec![], top_expensive_queries: vec![], alerts: vec![] },
-            IndexReport { analyzed_at: Utc::now(), missing_index_hints: vec![], unused_indexes: vec![], alerts: vec![] },
-            VacuumReport { analyzed_at: Utc::now(), bloated_tables: vec![], vacuumed_tables: vec![], alerts: vec![] },
-            PoolReport { analyzed_at: Utc::now(), stats: PoolStats { total_connections: 5, active: 2, idle: 3, waiting: 0, max_connections: 100, utilization_pct: 5.0 }, recommendation: None, alerts: vec![] },
-            ReplicationReport { analyzed_at: Utc::now(), is_primary: true, replicas: vec![], alerts: vec![] },
-            BackupReport { analyzed_at: Utc::now(), current_lsn: "0/1000000".into(), wal_level: "replica".into(), archive_mode: "on".into(), recent_backups: vec![], alerts: vec![] },
+            QueryAnalysisReport {
+                analyzed_at: Utc::now(),
+                top_slow_queries: vec![],
+                top_expensive_queries: vec![],
+                alerts: vec![],
+            },
+            IndexReport {
+                analyzed_at: Utc::now(),
+                missing_index_hints: vec![],
+                unused_indexes: vec![],
+                alerts: vec![],
+            },
+            VacuumReport {
+                analyzed_at: Utc::now(),
+                bloated_tables: vec![],
+                vacuumed_tables: vec![],
+                alerts: vec![],
+            },
+            PoolReport {
+                analyzed_at: Utc::now(),
+                stats: PoolStats {
+                    total_connections: 5,
+                    active: 2,
+                    idle: 3,
+                    waiting: 0,
+                    max_connections: 100,
+                    utilization_pct: 5.0,
+                },
+                recommendation: None,
+                alerts: vec![],
+            },
+            ReplicationReport {
+                analyzed_at: Utc::now(),
+                is_primary: true,
+                replicas: vec![],
+                alerts: vec![],
+            },
+            BackupReport {
+                analyzed_at: Utc::now(),
+                current_lsn: "0/1000000".into(),
+                wal_level: "replica".into(),
+                archive_mode: "on".into(),
+                recent_backups: vec![],
+                alerts: vec![],
+            },
         )
     }
 

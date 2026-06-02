@@ -108,7 +108,10 @@ pub async fn run_backup(args: BackupArgs) -> Result<()> {
         size: 0,
         checksum: "".to_string(),
         incremental: args.incremental,
-        files: files.iter().map(|p| p.to_string_lossy().to_string()).collect(),
+        files: files
+            .iter()
+            .map(|p| p.to_string_lossy().to_string())
+            .collect(),
     };
 
     // TODO: Implement storage backend handling
@@ -171,7 +174,10 @@ pub async fn run_list(args: ListArgs) -> Result<()> {
 }
 
 pub async fn run_cleanup(args: CleanupArgs) -> Result<()> {
-    println!("Cleaning up backups at {}, keeping last {}", args.location, args.keep);
+    println!(
+        "Cleaning up backups at {}, keeping last {}",
+        args.location, args.keep
+    );
 
     // TODO: Implement cleanup based on backend
     match args.backend.as_str() {
@@ -205,11 +211,18 @@ fn collect_files(path: &PathBuf) -> Result<Vec<PathBuf>> {
 }
 
 // File backend implementations
-async fn backup_to_file(args: &BackupArgs, metadata: &BackupMetadata, files: &[PathBuf]) -> Result<()> {
+async fn backup_to_file(
+    args: &BackupArgs,
+    metadata: &BackupMetadata,
+    files: &[PathBuf],
+) -> Result<()> {
     let dest_dir = PathBuf::from(&args.destination);
     fs::create_dir_all(&dest_dir)?;
 
-    let backup_name = format!("backup-{}.tar.gz", metadata.timestamp.format("%Y%m%d%H%M%S"));
+    let backup_name = format!(
+        "backup-{}.tar.gz",
+        metadata.timestamp.format("%Y%m%d%H%M%S")
+    );
     let backup_path = dest_dir.join(&backup_name);
 
     // Write metadata
@@ -284,9 +297,7 @@ async fn cleanup_from_file(args: &CleanupArgs) -> Result<()> {
 
     let mut backups: Vec<_> = fs::read_dir(location)?
         .filter_map(|entry| entry.ok())
-        .filter(|entry| {
-            entry.path().extension().and_then(|ext| ext.to_str()) == Some("tar.gz")
-        })
+        .filter(|entry| entry.path().extension().and_then(|ext| ext.to_str()) == Some("tar.gz"))
         .collect();
 
     backups.sort_by_key(|entry| entry.metadata().unwrap().modified().unwrap());
@@ -307,7 +318,11 @@ async fn cleanup_from_file(args: &CleanupArgs) -> Result<()> {
 }
 
 // S3 backend stubs
-async fn backup_to_s3(_args: &BackupArgs, _metadata: &BackupMetadata, _files: &[PathBuf]) -> Result<()> {
+async fn backup_to_s3(
+    _args: &BackupArgs,
+    _metadata: &BackupMetadata,
+    _files: &[PathBuf],
+) -> Result<()> {
     println!("S3 backup not fully implemented yet");
     Ok(())
 }
@@ -328,7 +343,11 @@ async fn cleanup_from_s3(_args: &CleanupArgs) -> Result<()> {
 }
 
 // Arweave backend stubs
-async fn backup_to_arweave(_args: &BackupArgs, _metadata: &BackupMetadata, _files: &[PathBuf]) -> Result<()> {
+async fn backup_to_arweave(
+    _args: &BackupArgs,
+    _metadata: &BackupMetadata,
+    _files: &[PathBuf],
+) -> Result<()> {
     println!("Arweave backup not fully implemented yet");
     Ok(())
 }
@@ -349,7 +368,11 @@ async fn cleanup_from_arweave(_args: &CleanupArgs) -> Result<()> {
 }
 
 // IPFS backend stubs
-async fn backup_to_ipfs(_args: &BackupArgs, _metadata: &BackupMetadata, _files: &[PathBuf]) -> Result<()> {
+async fn backup_to_ipfs(
+    _args: &BackupArgs,
+    _metadata: &BackupMetadata,
+    _files: &[PathBuf],
+) -> Result<()> {
     println!("IPFS backup not fully implemented yet");
     Ok(())
 }
@@ -370,7 +393,11 @@ async fn cleanup_from_ipfs(_args: &CleanupArgs) -> Result<()> {
 }
 
 // Filecoin backend stubs
-async fn backup_to_filecoin(_args: &BackupArgs, _metadata: &BackupMetadata, _files: &[PathBuf]) -> Result<()> {
+async fn backup_to_filecoin(
+    _args: &BackupArgs,
+    _metadata: &BackupMetadata,
+    _files: &[PathBuf],
+) -> Result<()> {
     println!("Filecoin backup not fully implemented yet");
     Ok(())
 }

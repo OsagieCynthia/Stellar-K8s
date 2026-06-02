@@ -996,10 +996,7 @@ async fn snapshot_restore(
         "To trigger an immediate restore, delete the existing PVC '{}' manually:",
         format!("{}-data", node_name)
     );
-    println!(
-        "  kubectl delete pvc {}-data -n {}",
-        node_name, namespace
-    );
+    println!("  kubectl delete pvc {}-data -n {}", node_name, namespace);
     Ok(())
 }
 

@@ -34,7 +34,10 @@ pub struct DeadLetterQueue {
 
 impl DeadLetterQueue {
     pub fn new(capacity: usize) -> Self {
-        Self { queue: Arc::new(RwLock::new(VecDeque::new())), capacity }
+        Self {
+            queue: Arc::new(RwLock::new(VecDeque::new())),
+            capacity,
+        }
     }
 
     /// Push a failed record into the DLQ
@@ -77,7 +80,12 @@ impl DeadLetterQueue {
 
     /// Records that have exhausted retries (permanently failed)
     pub async fn exhausted_count(&self) -> usize {
-        self.queue.read().await.iter().filter(|r| r.is_exhausted()).count()
+        self.queue
+            .read()
+            .await
+            .iter()
+            .filter(|r| r.is_exhausted())
+            .count()
     }
 }
 

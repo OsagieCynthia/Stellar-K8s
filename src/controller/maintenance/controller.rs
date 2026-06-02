@@ -106,7 +106,10 @@ impl MaintenanceController {
                 .await?;
 
             if slow_queries.is_empty() {
-                debug!("No slow queries detected for node {}", node.metadata.name.as_ref().unwrap());
+                debug!(
+                    "No slow queries detected for node {}",
+                    node.metadata.name.as_ref().unwrap()
+                );
             } else {
                 info!(
                     "Query profiling detected {} slow queries for node {}",
@@ -124,7 +127,10 @@ impl MaintenanceController {
                         );
                         profiler.ensure_indexes(&suggestions).await?;
                     } else {
-                        debug!("No index suggestions generated for node {}", node.metadata.name.as_ref().unwrap());
+                        debug!(
+                            "No index suggestions generated for node {}",
+                            node.metadata.name.as_ref().unwrap()
+                        );
                     }
                 }
             }
@@ -141,13 +147,24 @@ impl MaintenanceController {
 fn parse_window_duration(value: &str) -> chrono::Duration {
     let capture = Regex::new(r"(?i)^(?:(?P<h>\d+)h)?(?:(?P<m>\d+)m)?(?:(?P<s>\d+)s)?$").unwrap();
     if let Some(caps) = capture.captures(value.trim()) {
-        let hours = caps.name("h").and_then(|m| m.as_str().parse::<i64>().ok()).unwrap_or(0);
-        let minutes = caps.name("m").and_then(|m| m.as_str().parse::<i64>().ok()).unwrap_or(0);
-        let seconds = caps.name("s").and_then(|m| m.as_str().parse::<i64>().ok()).unwrap_or(0);
+        let hours = caps
+            .name("h")
+            .and_then(|m| m.as_str().parse::<i64>().ok())
+            .unwrap_or(0);
+        let minutes = caps
+            .name("m")
+            .and_then(|m| m.as_str().parse::<i64>().ok())
+            .unwrap_or(0);
+        let seconds = caps
+            .name("s")
+            .and_then(|m| m.as_str().parse::<i64>().ok())
+            .unwrap_or(0);
         if hours == 0 && minutes == 0 && seconds == 0 {
             return chrono::Duration::hours(2);
         }
-        return chrono::Duration::hours(hours) + chrono::Duration::minutes(minutes) + chrono::Duration::seconds(seconds);
+        return chrono::Duration::hours(hours)
+            + chrono::Duration::minutes(minutes)
+            + chrono::Duration::seconds(seconds);
     }
     chrono::Duration::hours(2)
 }
@@ -193,8 +210,14 @@ mod tests {
             slow_query_threshold_ms: 100,
         };
 
-        assert!(is_time_in_window(&cfg, NaiveTime::from_hms_opt(2, 30, 0).unwrap()));
-        assert!(!is_time_in_window(&cfg, NaiveTime::from_hms_opt(4, 1, 0).unwrap()));
+        assert!(is_time_in_window(
+            &cfg,
+            NaiveTime::from_hms_opt(2, 30, 0).unwrap()
+        ));
+        assert!(!is_time_in_window(
+            &cfg,
+            NaiveTime::from_hms_opt(4, 1, 0).unwrap()
+        ));
     }
 
     #[test]
@@ -211,9 +234,18 @@ mod tests {
             slow_query_threshold_ms: 100,
         };
 
-        assert!(is_time_in_window(&cfg, NaiveTime::from_hms_opt(23, 30, 0).unwrap()));
-        assert!(is_time_in_window(&cfg, NaiveTime::from_hms_opt(0, 30, 0).unwrap()));
-        assert!(!is_time_in_window(&cfg, NaiveTime::from_hms_opt(2, 30, 1).unwrap()));
+        assert!(is_time_in_window(
+            &cfg,
+            NaiveTime::from_hms_opt(23, 30, 0).unwrap()
+        ));
+        assert!(is_time_in_window(
+            &cfg,
+            NaiveTime::from_hms_opt(0, 30, 0).unwrap()
+        ));
+        assert!(!is_time_in_window(
+            &cfg,
+            NaiveTime::from_hms_opt(2, 30, 1).unwrap()
+        ));
     }
 
     #[test]

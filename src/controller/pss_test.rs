@@ -22,7 +22,10 @@ fn compliant_default_ctx_has_no_violations() {
         ..Default::default()
     };
     let violations = validate_stellar_security_context(&ctx);
-    assert!(violations.is_empty(), "expected no violations, got: {violations:?}");
+    assert!(
+        violations.is_empty(),
+        "expected no violations, got: {violations:?}"
+    );
 }
 
 #[test]
@@ -42,7 +45,9 @@ fn allow_privilege_escalation_true_is_a_violation() {
         ..Default::default()
     };
     let v = validate_stellar_security_context(&ctx);
-    assert!(v.iter().any(|x| x.field.contains("allowPrivilegeEscalation")));
+    assert!(v
+        .iter()
+        .any(|x| x.field.contains("allowPrivilegeEscalation")));
 }
 
 #[test]

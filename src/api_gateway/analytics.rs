@@ -117,10 +117,26 @@ mod tests {
     async fn records_and_aggregates() {
         let store = AnalyticsStore::new(100);
         store
-            .record("route-1", "GET", "/api/v1/tx", 200, Duration::from_millis(50), None, "v1")
+            .record(
+                "route-1",
+                "GET",
+                "/api/v1/tx",
+                200,
+                Duration::from_millis(50),
+                None,
+                "v1",
+            )
             .await;
         store
-            .record("route-1", "GET", "/api/v1/tx", 500, Duration::from_millis(100), None, "v1")
+            .record(
+                "route-1",
+                "GET",
+                "/api/v1/tx",
+                500,
+                Duration::from_millis(100),
+                None,
+                "v1",
+            )
             .await;
         let stats = store.stats_snapshot().await;
         let s = &stats["route-1"];

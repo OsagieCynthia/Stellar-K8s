@@ -55,12 +55,11 @@ impl Router {
                 continue;
             }
             // Header predicates
-            if !route.header_predicates.iter().all(|(k, v)| {
-                headers
-                    .get(k.as_str())
-                    .map(|hv| hv == v)
-                    .unwrap_or(false)
-            }) {
+            if !route
+                .header_predicates
+                .iter()
+                .all(|(k, v)| headers.get(k.as_str()).map(|hv| hv == v).unwrap_or(false))
+            {
                 continue;
             }
             if route.path_prefix.len() > best_len {
@@ -73,7 +72,10 @@ impl Router {
             None => MatchResult::NotFound,
             Some(route) => {
                 let remaining = path[route.path_prefix.len()..].to_string();
-                MatchResult::Matched(RouteMatch { route, remaining_path: remaining })
+                MatchResult::Matched(RouteMatch {
+                    route,
+                    remaining_path: remaining,
+                })
             }
         }
     }

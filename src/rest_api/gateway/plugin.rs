@@ -4,20 +4,16 @@
 //! with support for custom authentication, rate limiting, transformation,
 //! and analytics plugins.
 
-use std::collections::HashMap;
-use std::sync::Arc;
 use async_trait::async_trait;
-use axum::{
-    body::Body,
-    extract::Request,
-    response::Response,
-};
+use axum::{body::Body, extract::Request, response::Response};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use crate::controller::ControllerState;
 use super::auth::AuthContext;
+use crate::controller::ControllerState;
 
 /// Plugin hook types
 #[derive(Debug, Clone)]
@@ -127,7 +123,7 @@ impl PluginManager {
     pub async fn register<P: GatewayPlugin + 'static>(&self, plugin: P) {
         let name = plugin.name().to_string();
         let mut plugins = self.plugins.write().await;
-        
+
         // Initialize with default settings
         let settings = PluginSettings {
             name: name.clone(),
@@ -136,14 +132,14 @@ impl PluginManager {
             config: HashMap::new(),
             hooks: plugin.hooks().iter().map(|h| format!("{:?}", h)).collect(),
         };
-        
+
         let mut plugin = plugin;
         if let Err(e) = plugin.init(HashMap::new()).await {
             tracing::warn!("Plugin {} init error: {}", name, e);
         }
-        
+
         plugins.insert(name, Box::new(plugin));
-        
+
         drop(plugins);
         let mut settings = self.settings.write().await;
         settings.insert(name, settings);
@@ -164,7 +160,11 @@ impl PluginManager {
     }
 
     /// Update plugin configuration
-    pub async fn update_config(&self, name: &str, config: HashMap<String, String>) -> Result<(), String> {
+    pub async fn update_config(
+        &self,
+        name: &str,
+        config: HashMap<String, String>,
+    ) -> Result<(), String> {
         let mut plugins = self.plugins.write().await;
         if let Some(plugin) = plugins.get_mut(name) {
             plugin.init(config).await
@@ -299,7 +299,8 @@ impl GatewayPlugin for CustomAuthPlugin {
 
     async fn pre_request(&self, ctx: &mut PluginContext) -> Option<bool> {
         // Custom auth logic here
-        let token = ctx.request
+        let token = ctx
+            .request
             .headers()
             .get("X-Custom-Token")
             .and_then(|v| v.to_str().ok());
@@ -371,11 +372,7 @@ impl GatewayPlugin for LoggingPlugin {
     async fn post_response(&self, ctx: &mut PluginContext) {
         if let Some(response) = &ctx.response {
             let duration = (Utc::now() - ctx.start_time).num_milliseconds();
-            tracing::info!(
-                "Response: {} in {}ms",
-                response.status(),
-                duration
-            );
+            tracing::info!("Response: {} in {}ms", response.status(), duration);
         }
     }
 
@@ -391,10 +388,10 @@ mod tests {
     #[tokio::test]
     async fn test_plugin_manager_register() {
         let manager = PluginManager::new();
-        
+
         let plugin = LoggingPlugin::new();
         manager.register(plugin).await;
-        
+
         let plugins = manager.list_plugins().await;
         assert_eq!(plugins.len(), 1);
     }
@@ -402,13 +399,13 @@ mod tests {
     #[tokio::test]
     async fn test_plugin_manager_unregister() {
         let manager = PluginManager::new();
-        
+
         let plugin = LoggingPlugin::new();
         manager.register(plugin).await;
-        
+
         let removed = manager.unregister("request-logger").await;
         assert!(removed);
-        
+
         let plugins = manager.list_plugins().await;
         assert!(plugins.is_empty());
     }
@@ -416,12 +413,12 @@ mod tests {
     #[tokio::test]
     async fn test_custom_auth_plugin() {
         let mut plugin = CustomAuthPlugin::new();
-        
+
         let mut config = HashMap::new();
         config.insert("allowed_tokens".to_string(), "token1,token2".to_string());
-        
+
         plugin.init(config).await.unwrap();
-        
+
         assert!(plugin.hooks().contains(&PluginHook::PreRequest));
     }
 }

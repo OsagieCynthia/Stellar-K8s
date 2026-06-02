@@ -3,12 +3,12 @@
 //! Provides sophisticated rate limiting with sliding window,
 //! token bucket algorithm, and quota management per client.
 
+use chrono::{DateTime, Duration as ChronoDuration, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::RwLock;
-use chrono::{DateTime, Utc, Duration as ChronoDuration};
-use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use tokio::sync::RwLock;
 
 /// Rate limit errors
 #[derive(Error, Debug)]
@@ -116,8 +116,8 @@ impl ClientRateLimit {
     }
 
     fn check(&mut self) -> bool {
-        self.minute_bucket.try_consume() 
-            && self.hour_bucket.try_consume() 
+        self.minute_bucket.try_consume()
+            && self.hour_bucket.try_consume()
             && self.day_bucket.try_consume()
     }
 
@@ -331,10 +331,10 @@ impl QuotaManager {
     /// Check quota with async reset logic
     pub async fn check_quota_async(&self, client_id: &str) -> Result<QuotaConfig, String> {
         let mut quotas = self.quotas.write().await;
-        
-        let config = quotas.entry(client_id.to_string()).or_insert_with(|| {
-            QuotaConfig::default()
-        });
+
+        let config = quotas
+            .entry(client_id.to_string())
+            .or_insert_with(|| QuotaConfig::default());
 
         // Check if we need to reset (new month)
         if Utc::now() > config.reset_at {
@@ -402,12 +402,12 @@ mod tests {
     #[tokio::test]
     async fn test_rate_limiter_basic() {
         let limiter = RateLimiter::new(10, 5);
-        
+
         // First 10 requests should pass
         for _ in 0..10 {
             assert!(limiter.check("test-ip").await);
         }
-        
+
         // 11th should fail
         assert!(!limiter.check("test-ip").await);
     }
@@ -415,12 +415,12 @@ mod tests {
     #[tokio::test]
     async fn test_rate_limiter_per_client() {
         let limiter = RateLimiter::new(5, 2);
-        
+
         for _ in 0..5 {
             assert!(limiter.check_client("client1").await);
         }
         assert!(!limiter.check_client("client1").await);
-        
+
         // Different client should have own limit
         assert!(limiter.check_client("client2").await);
     }
@@ -428,16 +428,16 @@ mod tests {
     #[tokio::test]
     async fn test_quota_manager() {
         let manager = QuotaManager::new();
-        
+
         // Check initial quota
         let result = manager.check_quota_async("new-client").await;
         assert!(result.is_ok());
-        
+
         // Record some requests
         for _ in 0..5 {
             manager.record_request("new-client").await;
         }
-        
+
         let quota = manager.get_quota("new-client").await;
         assert!(quota.is_some());
         assert_eq!(quota.unwrap().current_usage, 5);
@@ -446,12 +446,12 @@ mod tests {
     #[test]
     fn test_token_bucket() {
         let mut bucket = TokenBucket::new(10, 1.0); // 10 tokens, 1 per second
-        
+
         // Should be able to consume up to 10
         for _ in 0..10 {
             assert!(bucket.try_consume());
         }
-        
+
         // Should fail after 10
         assert!(!bucket.try_consume());
     }
@@ -460,7 +460,7 @@ mod tests {
     fn test_quota_tier() {
         let free = QuotaConfig::new_tiered("test".to_string(), QuotaTier::Free);
         assert_eq!(free.monthly_requests, 10_000);
-        
+
         let pro = QuotaConfig::new_tiered("test".to_string(), QuotaTier::Pro);
         assert_eq!(pro.monthly_requests, 1_000_000);
     }

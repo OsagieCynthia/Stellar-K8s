@@ -138,7 +138,9 @@ async fn handle_request(State(state): State<GatewayState>, req: Request) -> Resp
         .headers()
         .iter()
         .filter_map(|(k, v)| {
-            v.to_str().ok().map(|v| (k.as_str().to_string(), v.to_string()))
+            v.to_str()
+                .ok()
+                .map(|v| (k.as_str().to_string(), v.to_string()))
         })
         .collect();
 
@@ -244,7 +246,9 @@ async fn handle_request(State(state): State<GatewayState>, req: Request) -> Resp
     let normalized_resp =
         match transform_response(&resp_body, &route.protocol, client_protocol, status_code) {
             Ok(r) => r,
-            Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, "Transform error").into_response(),
+            Err(_) => {
+                return (StatusCode::INTERNAL_SERVER_ERROR, "Transform error").into_response()
+            }
         };
 
     // Analytics

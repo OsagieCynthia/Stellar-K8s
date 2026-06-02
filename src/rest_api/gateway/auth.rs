@@ -2,8 +2,6 @@
 //!
 //! Supports multiple authentication methods: JWT, OAuth2, API Keys
 
-use std::collections::HashMap;
-use std::sync::Arc;
 use async_trait::async_trait;
 use axum::{
     body::Body,
@@ -13,6 +11,8 @@ use axum::{
 use chrono::{Duration, Utc};
 use jsonwebtoken::{decode, decode_header, Algorithm, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::sync::Arc;
 use thiserror::Error;
 use tokio::sync::RwLock;
 
@@ -155,10 +155,12 @@ impl JwtAuth {
             return Err(AuthError::InvalidToken("No JWT secret configured".into()));
         };
 
-        let token_data = decode::<JwtClaims>(token, &decoding_key, &self.validation)
-            .map_err(|e| match e.kind() {
-                jsonwebtoken::errors::ErrorKind::ExpiredSignature => AuthError::TokenExpired,
-                _ => AuthError::InvalidToken(e.to_string()),
+        let token_data =
+            decode::<JwtClaims>(token, &decoding_key, &self.validation).map_err(|e| {
+                match e.kind() {
+                    jsonwebtoken::errors::ErrorKind::ExpiredSignature => AuthError::TokenExpired,
+                    _ => AuthError::InvalidToken(e.to_string()),
+                }
             })?;
 
         let claims = token_data.claims;
@@ -222,7 +224,7 @@ impl OAuth2Auth {
         let _client_id = self.client_id.as_deref().unwrap_or("client");
         let _client_secret = self.client_secret.as_deref().unwrap_or("secret");
         let _redirect_uri = redirect_uri;
-        
+
         // Return a mock access token
         Ok(format!("access_token_{}", code))
     }

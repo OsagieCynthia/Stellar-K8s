@@ -264,9 +264,7 @@ fn check_container_security_context(
 /// Validate the `spec.securityContext` override field against PSS `restricted` rules.
 ///
 /// Returns violations for fields that would break PSS compliance.
-pub fn validate_stellar_security_context(
-    ctx: &StellarSecurityContext,
-) -> Vec<PssViolation> {
+pub fn validate_stellar_security_context(ctx: &StellarSecurityContext) -> Vec<PssViolation> {
     let mut v = Vec::new();
     let prefix = "spec.securityContext";
 
@@ -295,7 +293,13 @@ pub fn validate_stellar_security_context(
         ));
     }
     if let Some(caps) = &ctx.capabilities {
-        let forbidden = ["NET_ADMIN", "SYS_ADMIN", "SYS_PTRACE", "NET_RAW", "SYS_MODULE"];
+        let forbidden = [
+            "NET_ADMIN",
+            "SYS_ADMIN",
+            "SYS_PTRACE",
+            "NET_RAW",
+            "SYS_MODULE",
+        ];
         for cap in &caps.add {
             if forbidden.contains(&cap.as_str()) {
                 v.push(PssViolation::new(
@@ -349,8 +353,16 @@ pub fn build_container_security_context(
         }
         if let Some(caps) = &oc.capabilities {
             sc.capabilities = Some(Capabilities {
-                add: if caps.add.is_empty() { None } else { Some(caps.add.clone()) },
-                drop: if caps.drop.is_empty() { None } else { Some(caps.drop.clone()) },
+                add: if caps.add.is_empty() {
+                    None
+                } else {
+                    Some(caps.add.clone())
+                },
+                drop: if caps.drop.is_empty() {
+                    None
+                } else {
+                    Some(caps.drop.clone())
+                },
             });
         }
         if let Some(seccomp) = &oc.seccomp_profile {

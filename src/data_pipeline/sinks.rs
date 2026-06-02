@@ -208,9 +208,7 @@ impl Sink for S3Sink {
                 .put_object()
                 .bucket(&self.bucket)
                 .key(&key)
-                .body(aws_sdk_s3::primitives::ByteStream::from(
-                    body.into_bytes(),
-                ))
+                .body(aws_sdk_s3::primitives::ByteStream::from(body.into_bytes()))
                 .content_type("application/x-ndjson")
                 .send()
                 .await

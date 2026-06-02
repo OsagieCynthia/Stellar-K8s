@@ -60,12 +60,7 @@ fn empty_init_containers_list_is_valid() {
 
 #[test]
 fn init_container_can_share_data_volume_with_main_container() {
-    let init = make_init_container_with_volume(
-        "data-seeder",
-        "busybox",
-        "data",
-        "/data",
-    );
+    let init = make_init_container_with_volume("data-seeder", "busybox", "data", "/data");
 
     let mounts = init.volume_mounts.as_ref().unwrap();
     assert_eq!(mounts.len(), 1);
@@ -231,7 +226,11 @@ fn multiple_init_containers_all_must_succeed_before_main_starts() {
     // This is a Kubernetes guarantee; document it with an assertion on ordering.
     let init_containers = vec![
         make_init_container("check-db", "wait-for-it", vec!["db:5432"]),
-        make_init_container("run-migrations", "stellar-horizon", vec!["db", "migrate", "up"]),
+        make_init_container(
+            "run-migrations",
+            "stellar-horizon",
+            vec!["db", "migrate", "up"],
+        ),
     ];
 
     // Kubernetes runs them in index order and waits for each to exit 0.

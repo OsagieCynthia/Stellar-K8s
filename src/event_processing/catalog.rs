@@ -21,10 +21,16 @@ pub struct ValidationResult {
 
 impl ValidationResult {
     fn ok() -> Self {
-        Self { valid: true, errors: vec![] }
+        Self {
+            valid: true,
+            errors: vec![],
+        }
     }
     fn fail(errors: Vec<String>) -> Self {
-        Self { valid: false, errors }
+        Self {
+            valid: false,
+            errors,
+        }
     }
 }
 
@@ -117,7 +123,10 @@ impl EventCatalog {
         };
 
         // Version compatibility check
-        if !event.schema_version.is_compatible_with(&entry.schema.version) {
+        if !event
+            .schema_version
+            .is_compatible_with(&entry.schema.version)
+        {
             return ValidationResult::fail(vec![format!(
                 "schema version mismatch: event={} registered={}",
                 event.schema_version, entry.schema.version
@@ -220,7 +229,9 @@ impl EventCatalog {
 
 impl Default for EventCatalog {
     fn default() -> Self {
-        Self { entries: RwLock::new(HashMap::new()) }
+        Self {
+            entries: RwLock::new(HashMap::new()),
+        }
     }
 }
 

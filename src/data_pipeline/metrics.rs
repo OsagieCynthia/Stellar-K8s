@@ -39,9 +39,7 @@ impl PipelineMetrics {
     }
 
     pub fn record_transform_error(&self) {
-        self.inner
-            .transform_errors
-            .fetch_add(1, Ordering::Relaxed);
+        self.inner.transform_errors.fetch_add(1, Ordering::Relaxed);
     }
 
     pub fn record_sink_success(&self) {
@@ -54,12 +52,8 @@ impl PipelineMetrics {
 
     pub fn record_latency(&self, start: Instant) {
         let us = start.elapsed().as_micros() as u64;
-        self.inner
-            .latency_us_total
-            .fetch_add(us, Ordering::Relaxed);
-        self.inner
-            .latency_samples
-            .fetch_add(1, Ordering::Relaxed);
+        self.inner.latency_us_total.fetch_add(us, Ordering::Relaxed);
+        self.inner.latency_samples.fetch_add(1, Ordering::Relaxed);
     }
 
     pub fn snapshot(&self) -> MetricsSnapshot {

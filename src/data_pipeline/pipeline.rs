@@ -58,13 +58,7 @@ impl DataPipeline {
             .map_err(|e| crate::error::Error::ConfigError(e.to_string()))?;
         let sinks: Arc<Vec<Box<dyn Sink>>> = Arc::new(sinks);
 
-        tokio::spawn(run_pipeline(
-            config,
-            sinks,
-            metrics,
-            lineage,
-            shutdown_rx,
-        ));
+        tokio::spawn(run_pipeline(config, sinks, metrics, lineage, shutdown_rx));
 
         Ok(handle)
     }
@@ -239,8 +233,10 @@ async fn send_to_dlq(
         .key(record_id)
         .payload(payload)
         .headers(
-            rdkafka::message::OwnedHeaders::new()
-                .insert(rdkafka::message::Header { key: "dlq_reason", value: Some(reason) }),
+            rdkafka::message::OwnedHeaders::new().insert(rdkafka::message::Header {
+                key: "dlq_reason",
+                value: Some(reason),
+            }),
         );
     if let Err((e, _)) = producer.send(record, Duration::from_secs(5)).await {
         error!(dlq_topic, record_id, error = %e, "failed to send to DLQ");

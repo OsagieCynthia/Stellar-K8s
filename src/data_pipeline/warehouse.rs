@@ -119,9 +119,7 @@ impl SnowflakeAdapter {
     fn table_name(&self, partition: &PartitionKey) -> String {
         format!(
             "{}.{}.{}ledgers",
-            self.config.project_or_account,
-            self.config.dataset_or_schema,
-            self.config.table_prefix,
+            self.config.project_or_account, self.config.dataset_or_schema, self.config.table_prefix,
         )
     }
 }
@@ -243,7 +241,10 @@ mod tests {
     async fn test_noop_adapter_write_batch() {
         let adapter = NoOpAdapter::new(WarehouseConfig::noop());
         let records: Vec<EtlRecord> = (1..=5).map(sample_etl_record).collect();
-        let key = PartitionKey { strategy: "bydate".into(), value: "2024/01/15".into() };
+        let key = PartitionKey {
+            strategy: "bydate".into(),
+            value: "2024/01/15".into(),
+        };
         let result = adapter.write_batch(&key, &records).await.unwrap();
         assert_eq!(result.rows_written, 5);
     }

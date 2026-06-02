@@ -85,9 +85,15 @@ pub struct RetentionPolicy {
     pub monthly_retention_months: u32,
 }
 
-fn default_daily_retention() -> u32 { 7 }
-fn default_weekly_retention() -> u32 { 4 }
-fn default_monthly_retention() -> u32 { 12 }
+fn default_daily_retention() -> u32 {
+    7
+}
+fn default_weekly_retention() -> u32 {
+    4
+}
+fn default_monthly_retention() -> u32 {
+    12
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]

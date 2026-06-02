@@ -14,7 +14,11 @@ pub struct SchemaVersion {
 
 impl SchemaVersion {
     pub fn new(major: u32, minor: u32, patch: u32) -> Self {
-        Self { major, minor, patch }
+        Self {
+            major,
+            minor,
+            patch,
+        }
     }
 
     pub fn v1() -> Self {

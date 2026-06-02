@@ -1,10 +1,4 @@
-use axum::{
-    extract::State,
-    http::StatusCode,
-    response::IntoResponse,
-    routing::get,
-    Json, Router,
-};
+use axum::{extract::State, http::StatusCode, response::IntoResponse, routing::get, Json, Router};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -53,41 +47,53 @@ pub fn create_router(state: HealthCheckState) -> Router {
 async fn liveness_handler(State(state): State<HealthCheckState>) -> impl IntoResponse {
     // Liveness: just check if the process is running and responding
     match check_core_alive(&state.core_url).await {
-        Ok(_) => (StatusCode::OK, Json(HealthResponse {
-            status: "alive".to_string(),
-            synced: false,
-            ledger_num: 0,
-            network_ledger: 0,
-        })),
-        Err(e) => {
-            error!("Liveness check failed: {}", e);
-            (StatusCode::SERVICE_UNAVAILABLE, Json(HealthResponse {
-                status: "dead".to_string(),
+        Ok(_) => (
+            StatusCode::OK,
+            Json(HealthResponse {
+                status: "alive".to_string(),
                 synced: false,
                 ledger_num: 0,
                 network_ledger: 0,
-            }))
+            }),
+        ),
+        Err(e) => {
+            error!("Liveness check failed: {}", e);
+            (
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(HealthResponse {
+                    status: "dead".to_string(),
+                    synced: false,
+                    ledger_num: 0,
+                    network_ledger: 0,
+                }),
+            )
         }
     }
 }
 
 async fn readiness_handler(State(state): State<HealthCheckState>) -> impl IntoResponse {
     let sync_status = state.sync_status.read().await;
-    
+
     if sync_status.is_synced {
-        (StatusCode::OK, Json(HealthResponse {
-            status: "ready".to_string(),
-            synced: true,
-            ledger_num: sync_status.ledger_num,
-            network_ledger: sync_status.network_ledger,
-        }))
+        (
+            StatusCode::OK,
+            Json(HealthResponse {
+                status: "ready".to_string(),
+                synced: true,
+                ledger_num: sync_status.ledger_num,
+                network_ledger: sync_status.network_ledger,
+            }),
+        )
     } else {
-        (StatusCode::SERVICE_UNAVAILABLE, Json(HealthResponse {
-            status: "syncing".to_string(),
-            synced: false,
-            ledger_num: sync_status.ledger_num,
-            network_ledger: sync_status.network_ledger,
-        }))
+        (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(HealthResponse {
+                status: "syncing".to_string(),
+                synced: false,
+                ledger_num: sync_status.ledger_num,
+                network_ledger: sync_status.network_ledger,
+            }),
+        )
     }
 }
 
@@ -99,9 +105,9 @@ async fn check_core_alive(core_url: &str) -> Result<(), String> {
 
     // Try different endpoints based on the service type
     let endpoints = vec![
-        format!("{}/info", core_url),      // Stellar Core
-        format!("{}/", core_url),          // Horizon
-        format!("{}/health", core_url),    // Soroban RPC
+        format!("{}/info", core_url),   // Stellar Core
+        format!("{}/", core_url),       // Horizon
+        format!("{}/health", core_url), // Soroban RPC
     ];
 
     for url in endpoints {
@@ -122,8 +128,10 @@ pub async fn sync_monitor_loop(state: HealthCheckState) {
     loop {
         match fetch_sync_status(&client, &state.core_url).await {
             Ok(status) => {
-                debug!("Sync status: ledger={}, network={}, synced={}", 
-                    status.ledger_num, status.network_ledger, status.is_synced);
+                debug!(
+                    "Sync status: ledger={}, network={}, synced={}",
+                    status.ledger_num, status.network_ledger, status.is_synced
+                );
                 *state.sync_status.write().await = status;
             }
             Err(e) => {
@@ -134,10 +142,7 @@ pub async fn sync_monitor_loop(state: HealthCheckState) {
     }
 }
 
-async fn fetch_sync_status(
-    client: &reqwest::Client,
-    core_url: &str,
-) -> Result<SyncStatus, String> {
+async fn fetch_sync_status(client: &reqwest::Client, core_url: &str) -> Result<SyncStatus, String> {
     // Try Stellar Core API first (for validators)
     if let Ok(status) = fetch_stellar_core_status(client, core_url).await {
         return Ok(status);
@@ -172,10 +177,8 @@ async fn fetch_stellar_core_status(
         .await
         .map_err(|e| format!("Failed to parse response: {}", e))?;
 
-    let ledger_num = body["info"]["ledger"]["num"]
-        .as_u64()
-        .unwrap_or(0);
-    
+    let ledger_num = body["info"]["ledger"]["num"].as_u64().unwrap_or(0);
+
     let network_ledger = body["info"]["network"]["ledgerVersion"]
         .as_u64()
         .unwrap_or(0);
@@ -207,13 +210,9 @@ async fn fetch_horizon_status(
         .await
         .map_err(|e| format!("Failed to parse response: {}", e))?;
 
-    let ledger_num = body["history_latest_ledger"]
-        .as_u64()
-        .unwrap_or(0);
-    
-    let network_ledger = body["core_latest_ledger"]
-        .as_u64()
-        .unwrap_or(0);
+    let ledger_num = body["history_latest_ledger"].as_u64().unwrap_or(0);
+
+    let network_ledger = body["core_latest_ledger"].as_u64().unwrap_or(0);
 
     // Consider synced if within 5 ledgers of core
     let is_synced = network_ledger > 0 && (network_ledger - ledger_num) <= 5;
@@ -245,10 +244,8 @@ async fn fetch_soroban_status(
     let ledger_num = body["ledgerRetentionWindow"]["oldestLedger"]
         .as_u64()
         .unwrap_or(0);
-    
-    let network_ledger = body["latestLedger"]
-        .as_u64()
-        .unwrap_or(0);
+
+    let network_ledger = body["latestLedger"].as_u64().unwrap_or(0);
 
     // For Soroban RPC, check if it's healthy and has recent ledger data
     let is_synced = body["status"].as_str() == Some("healthy") && network_ledger > 0;

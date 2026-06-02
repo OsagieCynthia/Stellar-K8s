@@ -57,12 +57,22 @@ impl DbOptimizer {
         let vacuum_scheduler = VacuumScheduler::new(config.vacuum_bloat_threshold);
         let pool_optimizer = PoolOptimizer::new(config.pool_min, config.pool_max);
         let backup_manager = BackupManager::new();
-        Self { pool, config, query_analyzer, vacuum_scheduler, pool_optimizer, backup_manager }
+        Self {
+            pool,
+            config,
+            query_analyzer,
+            vacuum_scheduler,
+            pool_optimizer,
+            backup_manager,
+        }
     }
 
     /// Run all analysis sub-systems and return a full dashboard snapshot.
     pub async fn run_full_analysis(&self) -> crate::error::Result<DashboardSnapshot> {
-        info!("db_optimizer: running full analysis for {}", self.config.target);
+        info!(
+            "db_optimizer: running full analysis for {}",
+            self.config.target
+        );
 
         let (query, indexes, vacuum, pool, replication, backup) = tokio::try_join!(
             self.query_analyzer.analyze(&self.pool),

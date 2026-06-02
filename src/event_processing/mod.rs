@@ -84,7 +84,11 @@ pub struct EventProcessingSystem {
 impl EventProcessingSystem {
     /// Create a new system. Does not start background tasks.
     pub async fn new(config: EventProcessingConfig) -> crate::error::Result<Arc<Self>> {
-        let replay_capacity = if config.replay_capacity == 0 { 10_000 } else { config.replay_capacity };
+        let replay_capacity = if config.replay_capacity == 0 {
+            10_000
+        } else {
+            config.replay_capacity
+        };
 
         let stream = EventStreamProcessor::new(config.stream).await?;
         let cep = CepEngine::new();

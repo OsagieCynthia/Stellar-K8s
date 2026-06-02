@@ -3,15 +3,11 @@
 //! Provides sophisticated API routing with version management,
 //! path-based routing, and header-based routing.
 
-use std::collections::HashMap;
-use std::sync::Arc;
-use axum::{
-    body::Body,
-    extract::Request,
-    response::Response,
-};
+use axum::{body::Body, extract::Request, response::Response};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::sync::Arc;
 use tokio::sync::RwLock;
 
 /// API Version
@@ -27,7 +23,10 @@ impl ApiVersion {
     }
 
     pub fn with_minor(major: u32, minor: u32) -> Self {
-        Self { major, minor: Some(minor) }
+        Self {
+            major,
+            minor: Some(minor),
+        }
     }
 
     pub fn to_string(&self) -> String {
@@ -254,12 +253,15 @@ impl VersionedRouter {
 
         // Parse and add routes
         for route_config in &config.routes {
-            let mut rule = RouteRule::path(&route_config.path, match route_config.target_type.as_str() {
-                "backend" => RouteTarget::Backend(route_config.target.clone()),
-                "internal" => RouteTarget::Internal(route_config.target.clone()),
-                "redirect" => RouteTarget::Redirect(route_config.target.clone()),
-                _ => RouteTarget::Internal(route_config.target.clone()),
-            });
+            let mut rule = RouteRule::path(
+                &route_config.path,
+                match route_config.target_type.as_str() {
+                    "backend" => RouteTarget::Backend(route_config.target.clone()),
+                    "internal" => RouteTarget::Internal(route_config.target.clone()),
+                    "redirect" => RouteTarget::Redirect(route_config.target.clone()),
+                    _ => RouteTarget::Internal(route_config.target.clone()),
+                },
+            );
 
             if let Some(ver) = &route_config.version {
                 let parts: Vec<&str> = ver.trim_start_matches('v').split('.').collect();
@@ -273,7 +275,9 @@ impl VersionedRouter {
 
             // Add methods
             if !route_config.methods.is_empty() {
-                rule.methods = route_config.methods.iter()
+                rule.methods = route_config
+                    .methods
+                    .iter()
                     .filter_map(|m| m.parse().ok())
                     .collect();
             }
@@ -301,7 +305,7 @@ impl VersionedRouter {
         for rule in routes.iter() {
             if rule.matches(&req) {
                 let mut final_req = req;
-                
+
                 // Strip version from path if needed
                 if rule.strip_version {
                     let path = final_req.uri().path().to_string();
@@ -361,24 +365,29 @@ pub struct VersionSelector;
 impl VersionSelector {
     /// Extract version from Accept header
     pub fn from_accept(headers: &http::HeaderMap) -> Option<ApiVersion> {
-        headers.get("Accept")
+        headers
+            .get("Accept")
             .and_then(|v| v.to_str().ok())
             .and_then(|s| Self::parse_media_type(s))
     }
 
     /// Extract version from custom header
     pub fn from_header(headers: &http::HeaderMap) -> Option<ApiVersion> {
-        headers.get("X-API-Version")
+        headers
+            .get("X-API-Version")
             .and_then(|v| v.to_str().ok())
             .and_then(|s| Self::parse_version_str(s))
     }
 
     /// Extract version from query param
     pub fn from_query(req: &Request<Body>) -> Option<ApiVersion> {
-        req.uri().query()
-            .and_then(|q| q.split('&')
-                .filter_map(|p| p.split_once('='))
-                .find(|(k, _)| k == "version"))
+        req.uri()
+            .query()
+            .and_then(|q| {
+                q.split('&')
+                    .filter_map(|p| p.split_once('='))
+                    .find(|(k, _)| k == "version")
+            })
             .and_then(|(_, v)| Self::parse_version_str(v))
     }
 
@@ -387,7 +396,8 @@ impl VersionSelector {
         for part in accept.split(',') {
             if let Some(start) = part.find("vnd.stellar.v") {
                 let version_part = &part[start + 11..];
-                let version: String = version_part.chars()
+                let version: String = version_part
+                    .chars()
                     .take_while(|c| c.is_ascii_digit() || *c == '.')
                     .collect();
                 return Self::parse_version_str(&version);
@@ -414,7 +424,7 @@ mod tests {
     fn test_api_version() {
         let v1 = ApiVersion::new(1);
         assert_eq!(v1.to_string(), "v1");
-        
+
         let v12 = ApiVersion::with_minor(1, 2);
         assert_eq!(v12.to_string(), "v1.2");
     }
@@ -444,14 +454,19 @@ mod tests {
     #[tokio::test]
     async fn test_router_add_remove() {
         let router = VersionedRouter::new();
-        
-        router.add_route(RouteRule::path("/test", RouteTarget::Internal("/test".to_string()))).await;
-        
+
+        router
+            .add_route(RouteRule::path(
+                "/test",
+                RouteTarget::Internal("/test".to_string()),
+            ))
+            .await;
+
         let routes = router.get_routes().await;
         assert_eq!(routes.len(), 1);
-        
+
         router.remove_route("/test").await;
-        
+
         let routes = router.get_routes().await;
         assert!(routes.is_empty());
     }

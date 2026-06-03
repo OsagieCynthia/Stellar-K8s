@@ -552,7 +552,7 @@ pub async fn run_controller(state: Arc<ControllerState>) -> Result<()> {
             },
             Config::default(),
         )
-        .watches::<k8s_openapi::api::core::v1::Secret>(
+        .watches::<k8s_openapi::api::core::v1::Secret, _>(
             if let Some(ns) = &state.watch_namespace {
                 Api::namespaced(client.clone(), ns)
             } else {

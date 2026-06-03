@@ -166,6 +166,13 @@ pub async fn gateway_handler(
         latency_ms: start.elapsed().as_millis() as u64,
         client_id: auth_context.client_id.clone(),
         client_ip,
+        user_agent: ctx.headers.get(header::USER_AGENT).and_then(|v| v.to_str().ok()).map(String::from),
+        request_id: None,
+        error_message: if final_response.status().is_client_error() || final_response.status().is_server_error() {
+            Some(format!("{}", final_response.status()))
+        } else {
+            None
+        },
     };
     state.analytics.write().await.record_call(call);
 

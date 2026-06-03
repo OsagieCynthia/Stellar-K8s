@@ -333,7 +333,7 @@ mod tests {
             status: None,
         };
 
-        let pdb = build_pdb(&node);
+        let pdb = build_pdb(&node).expect("PDB should be created for replicated validator");
         let spec_pdb = pdb.spec.expect("PDB spec should be set");
 
         // ceil(2 * 3 / 3) = 2
@@ -356,7 +356,7 @@ mod tests {
             status: None,
         };
 
-        let pdb = build_pdb(&node);
+        let pdb = build_pdb(&node).expect("PDB should be created for replicated validator");
         let spec_pdb = pdb.spec.expect("PDB spec should be set");
 
         // ceil(2 * 5 / 3) = ceil(3.33) = 4
@@ -379,7 +379,7 @@ mod tests {
             status: None,
         };
 
-        let pdb = build_pdb(&node);
+        let pdb = build_pdb(&node).expect("PDB should be created for replicated validator");
         let spec_pdb = pdb.spec.expect("PDB spec should be set");
 
         assert_eq!(spec_pdb.min_available, Some(IntOrString::Int(1)));
@@ -718,7 +718,7 @@ peer-2 = "G..."
     fn test_pdb_has_labels_and_owner_ref() {
         use crate::controller::resources::build_pdb;
         let node = make_node(NodeType::Validator);
-        let pdb = build_pdb(&node);
+        let pdb = build_pdb(&node).expect("PDB should be created for validator");
         assert_standard_labels(&pdb.metadata, &node);
         assert_owner_reference(&pdb.metadata, &node);
     }

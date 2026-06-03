@@ -19,7 +19,7 @@ impl PartitionKey {
 }
 
 /// Partitioning strategy
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub enum PartitionStrategy {
     /// Partition by date: YYYY/MM/DD
     ByDate,

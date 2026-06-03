@@ -441,7 +441,7 @@ fn pvc_needs_update(existing: &PersistentVolumeClaim, desired: &PersistentVolume
         || existing.metadata.annotations != desired.metadata.annotations
 }
 
-fn build_pvc(node: &StellarNode, storage_class_name: String) -> PersistentVolumeClaim {
+pub(crate) fn build_pvc(node: &StellarNode, storage_class_name: String) -> PersistentVolumeClaim {
     let labels = standard_labels(node);
     let name = resource_name(node, "data");
 
@@ -918,7 +918,7 @@ pub async fn ensure_statefulset(
 }
 
 // *** seed_injection added as parameter ***
-fn build_statefulset(
+pub(crate) fn build_statefulset(
     node: &StellarNode,
     enable_mtls: bool,
     seed_injection: Option<&kms_secret::SeedInjectionSpec>,
@@ -4490,7 +4490,7 @@ pub async fn delete_network_policy(
 ///   `maxUnavailable: 1`.
 /// - Returns `None` when `replicas <= 1` (no PDB needed for single-replica
 ///   non-validator workloads).
-fn build_pdb(node: &StellarNode) -> Option<PodDisruptionBudget> {
+pub(crate) fn build_pdb(node: &StellarNode) -> Option<PodDisruptionBudget> {
     let labels = standard_labels(node);
     let name = node.name_any();
 

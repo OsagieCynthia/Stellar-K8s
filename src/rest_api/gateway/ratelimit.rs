@@ -232,14 +232,18 @@ impl RateLimiter {
 
         // Keep only the most recent entries
         while ip_limits.len() > max_entries {
-            if let Some((key, _)) = ip_limits.iter().next() {
-                ip_limits.remove(key);
+            if let Some(key) = ip_limits.keys().next().cloned() {
+                ip_limits.remove(&key);
+            } else {
+                break;
             }
         }
 
         while client_limits.len() > max_entries {
-            if let Some((key, _)) = client_limits.iter().next() {
-                client_limits.remove(key);
+            if let Some(key) = client_limits.keys().next().cloned() {
+                client_limits.remove(&key);
+            } else {
+                break;
             }
         }
     }

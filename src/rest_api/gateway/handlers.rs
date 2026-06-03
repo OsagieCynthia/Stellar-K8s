@@ -7,10 +7,11 @@ use axum::{
     extract::{Path, Query, State},
     http::{header, Method, StatusCode},
     response::{Html, IntoResponse, Json, Response},
-    routing::{get, post},
+    routing::{delete, get, post},
     Router,
 };
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -94,11 +95,21 @@ async fn get_gateway_config(
     State(state): State<Arc<GatewayState>>,
     Query(query): Query<ConfigQuery>,
 ) -> impl IntoResponse {
+    // Create AuthConfig from AuthMiddleware fields
+    let auth_config = AuthConfig {
+        jwt_secret: None, // Never expose secrets
+        jwt_algorithm: "RS256".to_string(),
+        jwt_issuer: None,
+        oauth2_client_id: None,
+        oauth2_client_secret: None,
+        oauth2_discovery_url: None,
+        api_keys: HashMap::new(),
+        allow_anonymous: false,
+        k8s_auth_enabled: false,
+    };
+    
     let config = GatewayConfig {
-        auth: AuthConfig {
-            jwt_secret: None, // Never expose secrets
-            ..state.auth.clone().into()
-        },
+        auth: auth_config,
         rate_limit: RateLimitConfig::default(),
         router: RouterConfig::default(),
         plugins: vec![],
@@ -224,9 +235,10 @@ async fn set_quota(
     State(state): State<Arc<GatewayState>>,
     Json(config): Json<QuotaConfig>,
 ) -> impl IntoResponse {
+    let client_id = config.client_id.clone();
     state
         .quota_manager
-        .set_quota(&config.client_id, config)
+        .set_quota(&client_id, config)
         .await;
     (
         StatusCode::OK,

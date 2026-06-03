@@ -72,7 +72,7 @@ pub trait GatewayPlugin: Send + Sync {
 }
 
 /// Plugin execution context with request metadata
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct PluginContext {
     pub method: http::Method,
     pub uri: http::Uri,
@@ -86,12 +86,15 @@ pub struct PluginContext {
 }
 
 impl PluginContext {
-    pub fn new(request: Request<Body>, auth: AuthContext, state: Arc<ControllerState>) -> Self {
+    pub fn new(request: &Request<Body>, auth: AuthContext, state: Arc<ControllerState>) -> Self {
         Self {
-            request,
+            method: request.method().clone(),
+            uri: request.uri().clone(),
+            headers: request.headers().clone(),
             auth,
             state,
-            response: None,
+            response_status: None,
+            response_headers: None,
             metadata: HashMap::new(),
             start_time: Utc::now(),
         }
@@ -141,13 +144,20 @@ impl PluginManager {
             tracing::warn!("Plugin {} init error: {}", name, e);
         }
 
+        let plugin_name = plugin.name().to_string();
+        let plugin_version = plugin.version().to_string();
+        let plugin_hooks: Vec<String> = plugin.hooks().iter().map(|h| format!("{:?}", h)).collect();
+
         plugins.insert(name.clone(), Box::new(plugin));
 
         drop(plugins);
         let mut settings = self.settings.write().await;
         settings.insert(name, PluginSettings {
+            name: plugin_name,
+            version: plugin_version,
             enabled: true,
             config: HashMap::new(),
+            hooks: plugin_hooks,
         });
     }
 

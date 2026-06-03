@@ -583,6 +583,7 @@ impl Default for StellarNodeSpec {
             audit: None,
             policy: None,
             priority_class_name: None,
+            security_context: None,
         }
     }
 }

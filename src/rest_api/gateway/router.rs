@@ -386,7 +386,7 @@ impl VersionSelector {
             .and_then(|q| {
                 q.split('&')
                     .filter_map(|p| p.split_once('='))
-                    .find(|(k, _)| k == "version")
+                    .find(|(k, _)| *k == "version")
             })
             .and_then(|(_, v)| Self::parse_version_str(v))
     }

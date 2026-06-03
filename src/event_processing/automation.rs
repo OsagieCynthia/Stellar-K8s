@@ -134,56 +134,58 @@ impl AutomationExecutor {
         }
     }
 
-    async fn execute_action(
-        &self,
-        rule_name: &str,
-        action: &AutomationAction,
-        trigger: &ProcessingEvent,
-    ) {
-        match action {
-            AutomationAction::Log { message } => {
-                info!(
-                    "automation[{rule_name}]: {message} (triggered by {})",
-                    trigger.event_type
-                );
-            }
-            AutomationAction::EmitEvent {
-                event_type,
-                payload,
-            } => {
-                info!("automation[{rule_name}]: emitting {event_type}");
-                if let Some(emit) = &self.emit_fn {
-                    let ev = ProcessingEvent::new(
-                        event_type.clone(),
-                        crate::event_processing::schema::EventSource::External("automation".into()),
-                        trigger.aggregate_id.clone(),
-                        trigger.namespace.clone(),
-                        payload.clone(),
-                    )
-                    .with_causation_id(trigger.id.clone())
-                    .with_correlation_id(trigger.correlation_id.clone());
-                    emit(ev);
+    fn execute_action<'a>(
+        &'a self,
+        rule_name: &'a str,
+        action: &'a AutomationAction,
+        trigger: &'a ProcessingEvent,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + 'a>> {
+        Box::pin(async move {
+            match action {
+                AutomationAction::Log { message } => {
+                    info!(
+                        "automation[{rule_name}]: {message} (triggered by {})",
+                        trigger.event_type
+                    );
+                }
+                AutomationAction::EmitEvent {
+                    event_type,
+                    payload,
+                } => {
+                    info!("automation[{rule_name}]: emitting {event_type}");
+                    if let Some(emit) = &self.emit_fn {
+                        let ev = ProcessingEvent::new(
+                            event_type.clone(),
+                            crate::event_processing::schema::EventSource::External("automation".into()),
+                            trigger.aggregate_id.clone(),
+                            trigger.namespace.clone(),
+                            payload.clone(),
+                        )
+                        .with_causation_id(trigger.id.clone())
+                        .with_correlation_id(trigger.correlation_id.clone());
+                        emit(ev);
+                    }
+                }
+                AutomationAction::HttpCallback { url, method, body } => {
+                    info!("automation[{rule_name}]: HTTP {method} {url}");
+                    let client = reqwest::Client::new();
+                    let req = match method.to_uppercase().as_str() {
+                        "POST" => client.post(url),
+                        "PUT" => client.put(url),
+                        _ => client.get(url),
+                    };
+                    let req = if let Some(b) = body { req.json(b) } else { req };
+                    if let Err(e) = req.send().await {
+                        error!("automation[{rule_name}]: HTTP callback failed: {e}");
+                    }
+                }
+                AutomationAction::Sequence(actions) => {
+                    for a in actions {
+                        self.execute_action(rule_name, a, trigger).await;
+                    }
                 }
             }
-            AutomationAction::HttpCallback { url, method, body } => {
-                info!("automation[{rule_name}]: HTTP {method} {url}");
-                let client = reqwest::Client::new();
-                let req = match method.to_uppercase().as_str() {
-                    "POST" => client.post(url),
-                    "PUT" => client.put(url),
-                    _ => client.get(url),
-                };
-                let req = if let Some(b) = body { req.json(b) } else { req };
-                if let Err(e) = req.send().await {
-                    error!("automation[{rule_name}]: HTTP callback failed: {e}");
-                }
-            }
-            AutomationAction::Sequence(actions) => {
-                for a in actions {
-                    self.execute_action(rule_name, a, trigger).await;
-                }
-            }
-        }
+        })
     }
 }
 

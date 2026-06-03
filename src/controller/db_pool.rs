@@ -207,6 +207,8 @@ mod tests {
             max_connections: 2,
             connection_timeout_secs: 1,
             idle_timeout_secs: Some(60),
+            max_lifetime_secs: None,
+            test_before_acquire: true,
             query_timeout_ms: None,
         };
         assert_eq!(cfg.idle_timeout_secs, Some(60));
@@ -220,6 +222,8 @@ mod tests {
             max_connections: 2,
             connection_timeout_secs: 1,
             idle_timeout_secs: None,
+            max_lifetime_secs: None,
+            test_before_acquire: true,
             query_timeout_ms: Some(15_000),
         };
         assert_eq!(cfg.query_timeout_ms, Some(15_000));
@@ -239,6 +243,8 @@ mod tests {
             max_connections: 1,
             connection_timeout_secs: 1,
             idle_timeout_secs: None,
+            max_lifetime_secs: None,
+            test_before_acquire: true,
             query_timeout_ms: Some(0),
         };
         // 0 ms means queries are not cancelled immediately in PostgreSQL

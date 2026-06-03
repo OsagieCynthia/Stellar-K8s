@@ -524,7 +524,6 @@ impl OpenApiGenerator {
                         location: p.location.clone(),
                         description: Some(p.description.clone()),
                         required: p.required,
-                        schema_type: p.schema_type.clone(),
                         schema: Some(OpenApiSchema::String(OpenApiStringSchema {
                             format: None,
                             enum_values: None,

@@ -758,6 +758,8 @@ mod tests {
                     failover_dns: None,
                     health_check_interval: 30,
                     drill_schedule: None,
+                    policy_ref: None,
+                    archive_integrity_config: None,
                 }),
                 pod_anti_affinity: Default::default(),
                 topology_spread_constraints: None,
@@ -771,6 +773,7 @@ mod tests {
                 service_mesh: None,
                 forensic_snapshot: None,
                 resource_meta: None,
+                ..Default::default()
             },
             status: None,
         }
@@ -950,13 +953,13 @@ mod tests {
     #[test]
     fn test_consistency_under_high_load() {
         // Simulate 1000 ledger advances with random jitter (0-3 ledgers behind)
-        let mut primary_seq = 1_000_000;
-        let mut standby_seq = 1_000_000;
+        let mut primary_seq: u64 = 1_000_000;
+        let mut standby_seq: u64 = 1_000_000;
 
         for i in 0..1000 {
             primary_seq += 1;
             // Simulate standby being slightly behind (0, 1, 2, or 3 ledgers)
-            let jitter = i % 4;
+            let jitter = (i % 4) as u64;
             standby_seq = primary_seq.saturating_sub(jitter);
 
             let primary = make_snapshot(primary_seq, "hash");
@@ -988,7 +991,7 @@ mod tests {
         for i in 0..1000u64 {
             primary_seq += 1;
             // Standby lags by at most 3 ledgers (simulating network jitter)
-            if i % 4 != 0 {
+            if i % 4 != 0 || primary_seq.saturating_sub(standby_seq) >= MAX_ACCEPTABLE_LAG_LEDGERS {
                 standby_seq += 1;
             }
 

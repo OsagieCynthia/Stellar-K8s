@@ -65,8 +65,10 @@ pub mod network_isolation;
 pub mod predictive_scaling;
 pub mod pss;
 pub mod quota;
+pub mod registry_controller;
 pub mod resource_meta;
 pub mod snapshot_integrity;
+pub mod stellar_secret_controller;
 
 pub mod anomaly_detection;
 pub(crate) mod archive_health;
@@ -205,12 +207,14 @@ pub use pss::{
 #[cfg(feature = "reconciler-fuzz")]
 pub use reconciler::reconcile_for_fuzz;
 pub use reconciler::{run_controller, BatchSummaryReport, ControllerState};
+pub use registry_controller::{check_admission, reconcile_stellar_registry, summary_to_cve_count};
 pub use remediation::{can_remediate, check_stale_node, RemediationLevel, StaleCheckResult};
 pub use service_mesh::{
     delete_service_mesh_resources, ensure_destination_rule, ensure_peer_authentication,
     ensure_request_authentication, ensure_virtual_service,
 };
 pub use snapshot_worker::run_snapshot_worker;
+pub use stellar_secret_controller::reconcile_stellar_secret;
 pub use webhook_delivery::{
     DeliveryRecord, WebhookDeliveryService, WebhookEndpoint, WebhookEvent, WebhookEventType,
 };

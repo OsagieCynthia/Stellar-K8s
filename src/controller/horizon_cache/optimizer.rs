@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::cache::{CacheLayer, HorizonCache, HorizonCacheConfig};
+use super::cache::{CacheLayer, HorizonCache};
 
 /// Horizon query type classification.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

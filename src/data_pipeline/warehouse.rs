@@ -116,7 +116,7 @@ impl SnowflakeAdapter {
         Self { config }
     }
 
-    fn table_name(&self, partition: &PartitionKey) -> String {
+    fn table_name(&self, _partition: &PartitionKey) -> String {
         format!(
             "{}.{}.{}ledgers",
             self.config.project_or_account, self.config.dataset_or_schema, self.config.table_prefix,

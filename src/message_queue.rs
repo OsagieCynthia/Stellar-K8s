@@ -4,10 +4,9 @@
 /// exponential-backoff retry, message filtering/routing, quota management,
 /// and Prometheus-style metrics.
 use serde::{Deserialize, Serialize};
-use std::cmp::Reverse;
 use std::collections::{BinaryHeap, HashMap, VecDeque};
 use std::sync::Arc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::RwLock;
 use tracing::{debug, info, warn};
 

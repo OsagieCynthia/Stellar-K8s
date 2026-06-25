@@ -5,7 +5,7 @@
 //! and analytics plugins.
 
 use async_trait::async_trait;
-use axum::{body::Body, extract::Request, response::Response};
+use axum::{body::Body, extract::Request};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -131,7 +131,7 @@ impl PluginManager {
         let mut plugins = self.plugins.write().await;
 
         // Initialize with default settings
-        let settings = PluginSettings {
+        let _settings = PluginSettings {
             name: name.clone(),
             version: plugin.version().to_string(),
             enabled: true,

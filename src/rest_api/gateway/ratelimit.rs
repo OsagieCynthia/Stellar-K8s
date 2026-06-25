@@ -328,7 +328,7 @@ impl QuotaManager {
     }
 
     /// Check if client has quota remaining
-    pub fn check_quota(&self, client_id: &str) -> Result<QuotaConfig, String> {
+    pub fn check_quota(&self, _client_id: &str) -> Result<QuotaConfig, String> {
         // This is sync for quick checks; use async version for full logic
         Ok(QuotaConfig::default())
     }

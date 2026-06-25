@@ -1,5 +1,5 @@
 .PHONY: help \
-	fmt fmt-check lint audit \
+	fmt fmt-check lint lint-strict audit \
 	build test ci-local quick watch \
 	docker-build docker-build-ci docker-multiarch \
 	dev-setup pre-commit pre-commit-install run-local run-dev \
@@ -65,6 +65,17 @@ lint: ## Run clippy
 		-A clippy::items_after_test_module \
 		-A clippy::approx_constant \
 		-A clippy::should_implement_trait
+
+lint-strict: ## Run clippy with strict warnings (fail on correctness, suspicious, perf, style)
+	@echo "→ Running clippy (strict mode)..."
+	@K8S_OPENAPI_ENABLED_VERSION=1.30 $(CARGO) clippy --workspace --all-targets \
+		--features "rest-api,metrics,admission-webhook,k8s-v1-30,reconciler-fuzz" -- \
+		-D clippy::correctness \
+		-D clippy::suspicious \
+		-D clippy::perf \
+		-D clippy::style \
+		-D clippy::complexity \
+		-D clippy::nursery
 
 audit: ## Security audit
 	@echo "→ Running security audit..."

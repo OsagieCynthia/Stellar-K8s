@@ -3,7 +3,7 @@
 //! Provides sophisticated API routing with version management,
 //! path-based routing, and header-based routing.
 
-use axum::{body::Body, extract::Request, response::Response};
+use axum::{body::Body, extract::Request};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

@@ -23,13 +23,11 @@ use crate::crd::StellarNode;
 use crate::error::{Error, Result};
 use k8s_openapi::api::core::v1::PersistentVolumeClaim;
 use k8s_openapi::api::storage::v1::StorageClass;
-use k8s_openapi::apimachinery::pkg::api::resource::Quantity;
 use kube::{
     api::{Api, Patch, PatchParams},
     Client, ResourceExt,
 };
 use serde_json::json;
-use std::collections::BTreeMap;
 use tracing::{debug, info, instrument, warn};
 
 // ── Constants ─────────────────────────────────────────────────────────────────

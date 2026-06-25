@@ -440,7 +440,7 @@ pub async fn run_sidecar_loop(
     poll_interval_secs: u64,
     expected_passphrase: &str,
 ) -> Result<()> {
-    let api: Api<ConfigMap> = Api::namespaced(client.clone(), namespace);
+    let _api: Api<ConfigMap> = Api::namespaced(client.clone(), namespace);
     let node_api: Api<StellarNode> = Api::namespaced(client.clone(), namespace);
 
     let mut interval = tokio::time::interval(std::time::Duration::from_secs(poll_interval_secs));

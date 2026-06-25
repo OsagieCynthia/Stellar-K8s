@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use crate::crd::{NodeType, StellarNode};
+use crate::crd::StellarNode;
 use crate::plugin_sdk::{PluginRegistry, ReconcileContext, ReconcileHook};
 use kube::core::ObjectMeta;
 

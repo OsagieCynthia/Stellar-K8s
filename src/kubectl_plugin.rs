@@ -810,7 +810,7 @@ async fn snapshot_create(
 ) -> Result<()> {
     // First, verify the StellarNode exists
     let node_api: Api<StellarNode> = Api::namespaced(client.clone(), namespace);
-    let node = node_api.get(node_name).await.map_err(Error::KubeError)?;
+    let _node = node_api.get(node_name).await.map_err(Error::KubeError)?;
 
     let pvc_name = resource_name_for_node(node_name, "data");
     let snapshot_name = format!(

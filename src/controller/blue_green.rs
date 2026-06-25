@@ -37,7 +37,7 @@ use crate::error::{Error, Result};
 use k8s_openapi::api::apps::v1::Deployment;
 use k8s_openapi::api::batch::v1::{Job, JobSpec};
 use k8s_openapi::api::core::v1::{
-    Container, PodSpec, PodTemplateSpec, SecretVolumeSource, Service, Volume,
+    PodSpec, PodTemplateSpec, SecretVolumeSource, Service, Volume,
 };
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 use kube::api::{Api, Patch, PatchParams, PostParams};

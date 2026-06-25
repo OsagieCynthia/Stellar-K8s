@@ -172,6 +172,10 @@ jobs:
         if: needs.changes.outputs.rust_core == 'true'
         run: make lint
 
+      - name: Run clippy (strict mode - fail on all warnings)
+        if: needs.changes.outputs.rust_core == 'true'
+        run: make lint-strict
+
   # ── 4. Security audit (only when deps change) ────────────────────────────────
   security-audit:
     name: Security Audit

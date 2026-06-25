@@ -339,7 +339,7 @@ impl QuotaManager {
 
         let config = quotas
             .entry(client_id.to_string())
-            .or_insert_with(|| QuotaConfig::default());
+            .or_insert_with(QuotaConfig::default);
 
         // Check if we need to reset (new month)
         if Utc::now() > config.reset_at {

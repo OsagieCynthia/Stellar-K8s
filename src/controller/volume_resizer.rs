@@ -265,7 +265,7 @@ impl VolumeResizerController {
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(10))
             .build()
-            .map_err(|e| Error::HttpError(e))?;
+            .map_err(Error::HttpError)?;
 
         // Query used bytes.
         let used_query = format!(

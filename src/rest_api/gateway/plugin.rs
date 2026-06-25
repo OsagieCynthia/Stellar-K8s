@@ -291,6 +291,12 @@ pub struct CustomAuthPlugin {
 
 impl CustomAuthPlugin {
     pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl Default for CustomAuthPlugin {
+    fn default() -> Self {
         Self {
             name: "custom-auth".to_string(),
             version: "1.0.0".to_string(),
@@ -350,6 +356,12 @@ pub struct LoggingPlugin {
 
 impl LoggingPlugin {
     pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl Default for LoggingPlugin {
+    fn default() -> Self {
         Self {
             name: "request-logger".to_string(),
             version: "1.0.0".to_string(),

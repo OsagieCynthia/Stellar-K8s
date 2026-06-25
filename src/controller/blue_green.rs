@@ -506,14 +506,14 @@ pub async fn orchestrate_horizon_migration(
         crate::controller::metrics::observe_horizon_migration_duration(
             &namespace,
             &node_name,
-            &node.spec.network_passphrase(),
+            node.spec.network_passphrase(),
             "failed",
             duration,
         );
         crate::controller::metrics::inc_horizon_migration_total(
             &namespace,
             &node_name,
-            &node.spec.network_passphrase(),
+            node.spec.network_passphrase(),
             "failed",
         );
         return Ok(false);
@@ -537,14 +537,14 @@ pub async fn orchestrate_horizon_migration(
         crate::controller::metrics::observe_horizon_migration_duration(
             &namespace,
             &node_name,
-            &node.spec.network_passphrase(),
+            node.spec.network_passphrase(),
             "failed",
             duration,
         );
         crate::controller::metrics::inc_horizon_migration_total(
             &namespace,
             &node_name,
-            &node.spec.network_passphrase(),
+            node.spec.network_passphrase(),
             "failed",
         );
         return Ok(false);
@@ -563,14 +563,14 @@ pub async fn orchestrate_horizon_migration(
                 crate::controller::metrics::observe_horizon_migration_duration(
                     &namespace,
                     &node_name,
-                    &node.spec.network_passphrase(),
+                    node.spec.network_passphrase(),
                     "failed",
                     duration,
                 );
                 crate::controller::metrics::inc_horizon_migration_total(
                     &namespace,
                     &node_name,
-                    &node.spec.network_passphrase(),
+                    node.spec.network_passphrase(),
                     "failed",
                 );
                 return Ok(false);
@@ -589,14 +589,14 @@ pub async fn orchestrate_horizon_migration(
         crate::controller::metrics::observe_horizon_migration_duration(
             &namespace,
             &node_name,
-            &node.spec.network_passphrase(),
+            node.spec.network_passphrase(),
             "failed",
             duration,
         );
         crate::controller::metrics::inc_horizon_migration_total(
             &namespace,
             &node_name,
-            &node.spec.network_passphrase(),
+            node.spec.network_passphrase(),
             "failed",
         );
         return Ok(false);

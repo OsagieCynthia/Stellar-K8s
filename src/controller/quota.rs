@@ -137,7 +137,7 @@ pub async fn check_quota(client: &Client, node: &StellarNode) -> Result<QuotaChe
                 let hard_m = parse_cpu_millis(hard_cpu).unwrap_or(f64::MAX);
                 let used_m = used_map
                     .and_then(|u| u.get("requests.cpu"))
-                    .and_then(|q| parse_cpu_millis(q))
+                    .and_then(parse_cpu_millis)
                     .unwrap_or(0.0);
 
                 utilisation.push(QuotaUtilisation {
@@ -162,7 +162,7 @@ pub async fn check_quota(client: &Client, node: &StellarNode) -> Result<QuotaChe
                 let hard_b = parse_memory_bytes(hard_mem).unwrap_or(f64::MAX);
                 let used_b = used_map
                     .and_then(|u| u.get("requests.memory"))
-                    .and_then(|q| parse_memory_bytes(q))
+                    .and_then(parse_memory_bytes)
                     .unwrap_or(0.0);
 
                 utilisation.push(QuotaUtilisation {

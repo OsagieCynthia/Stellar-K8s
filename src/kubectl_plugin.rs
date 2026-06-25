@@ -963,7 +963,7 @@ async fn snapshot_restore(
     vs_api
         .get(snapshot_name)
         .await
-        .map_err(|e| Error::KubeError(e))?;
+        .map_err(Error::KubeError)?;
 
     // Patch the StellarNode spec to point at the snapshot.
     let node_api: Api<StellarNode> = Api::namespaced(client.clone(), namespace);
@@ -994,8 +994,8 @@ async fn snapshot_restore(
         "The operator will use this snapshot as the PVC data source on the next pod recreation."
     );
     println!(
-        "To trigger an immediate restore, delete the existing PVC '{}' manually:",
-        format!("{}-data", node_name)
+        "To trigger an immediate restore, delete the existing PVC '{}-data' manually:",
+        node_name
     );
     println!("  kubectl delete pvc {}-data -n {}", node_name, namespace);
     Ok(())

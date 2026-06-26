@@ -51,6 +51,7 @@ impl Default for TestHarness {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::crd::NodeType;
     use crate::plugin_sdk::HookResult;
     use async_trait::async_trait;
 

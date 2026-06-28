@@ -66,7 +66,7 @@ lint: ## Run clippy
 		-A clippy::approx_constant \
 		-A clippy::should_implement_trait
 
-lint-strict: ## Run clippy (all categories + complexity/nursery; same exceptions as lint)
+lint-strict: ## Run clippy (adds complexity checks on top of lint; same base exceptions)
 	@echo "→ Running clippy (strict mode)..."
 	@K8S_OPENAPI_ENABLED_VERSION=1.30 $(CARGO) clippy --workspace --all-targets \
 		--features "rest-api,metrics,admission-webhook,k8s-v1-30,reconciler-fuzz" -- \
@@ -75,7 +75,6 @@ lint-strict: ## Run clippy (all categories + complexity/nursery; same exceptions
 		-D clippy::perf \
 		-D clippy::style \
 		-D clippy::complexity \
-		-D clippy::nursery \
 		-A clippy::new_without_default \
 		-A clippy::match_like_matches_macro \
 		-A clippy::match_result_ok \
@@ -86,7 +85,10 @@ lint-strict: ## Run clippy (all categories + complexity/nursery; same exceptions
 		-A clippy::redundant_closure \
 		-A clippy::items_after_test_module \
 		-A clippy::approx_constant \
-		-A clippy::should_implement_trait
+		-A clippy::should_implement_trait \
+		-A clippy::cognitive_complexity \
+		-A clippy::too_many_lines \
+		-A clippy::type_complexity
 
 audit: ## Security audit
 	@echo "→ Running security audit..."

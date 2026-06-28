@@ -32,6 +32,7 @@
     { "pattern": "^https://gdpr\\.eu/" },
     { "pattern": "^https://lamport\\.azurewebsites\\.net/" },
     { "pattern": "^https://nvd\\.nist\\.gov/" },
-    { "pattern": "^https://www\\.cisecurity\\.org/" }
+    { "pattern": "^https://www\\.cisecurity\\.org/" },
+    { "pattern": "^https://llvm\\.org/" }
   ]
 }

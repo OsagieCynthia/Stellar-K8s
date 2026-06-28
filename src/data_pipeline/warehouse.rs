@@ -209,7 +209,7 @@ pub fn create_adapter(config: WarehouseConfig) -> Box<dyn WarehouseAdapter> {
     match config.provider {
         WarehouseProvider::Snowflake => Box::new(SnowflakeAdapter::new(config)),
         WarehouseProvider::BigQuery => Box::new(BigQueryAdapter::new(config)),
-        WarehouseProvider::NoOp | _ => Box::new(NoOpAdapter::new(config)),
+        _ => Box::new(NoOpAdapter::new(config)),
     }
 }
 

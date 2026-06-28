@@ -22,19 +22,15 @@ fn now_secs() -> u64 {
 // ── Message ───────────────────────────────────────────────────────────────────
 
 /// Priority level for a message (lower number = higher priority).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum MessagePriority {
     Critical = 0,
     High = 1,
+    #[default]
     Normal = 2,
     Low = 3,
 }
 
-impl Default for MessagePriority {
-    fn default() -> Self {
-        Self::Normal
-    }
-}
 
 /// A single message in the queue.
 #[derive(Debug, Clone, Serialize, Deserialize)]

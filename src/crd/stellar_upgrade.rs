@@ -66,9 +66,10 @@ pub struct StellarUpgradeStatus {
     pub rollback_in_progress: bool,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "PascalCase")]
 pub enum UpgradePhase {
+    #[default]
     Pending,
     CanaryDeployed,
     ProgressivRollout,
@@ -77,8 +78,3 @@ pub enum UpgradePhase {
     Failed,
 }
 
-impl Default for UpgradePhase {
-    fn default() -> Self {
-        UpgradePhase::Pending
-    }
-}

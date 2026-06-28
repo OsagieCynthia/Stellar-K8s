@@ -90,22 +90,13 @@ impl Default for CircuitBreakerConfig {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct TrafficShapingConfig {
     pub adaptive: AdaptiveRateConfig,
     pub buckets: BucketConfig,
     pub circuit_breaker: CircuitBreakerConfig,
 }
 
-impl Default for TrafficShapingConfig {
-    fn default() -> Self {
-        Self {
-            adaptive: AdaptiveRateConfig::default(),
-            buckets: BucketConfig::default(),
-            circuit_breaker: CircuitBreakerConfig::default(),
-        }
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct TrafficRequest {

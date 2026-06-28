@@ -274,7 +274,7 @@ impl Analytics {
                 },
             })
             .collect();
-        top_paths.sort_by(|a, b| b.requests.cmp(&a.requests));
+        top_paths.sort_by_key(|b| std::cmp::Reverse(b.requests));
         top_paths.truncate(10);
 
         // Top clients
@@ -306,7 +306,7 @@ impl Analytics {
                 },
             })
             .collect();
-        top_clients.sort_by(|a, b| b.requests.cmp(&a.requests));
+        top_clients.sort_by_key(|b| std::cmp::Reverse(b.requests));
         top_clients.truncate(10);
 
         let window_secs = window.as_secs() as f64;

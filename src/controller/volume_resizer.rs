@@ -414,7 +414,7 @@ impl VolumeResizerController {
 fn bytes_to_gi(bytes: u64) -> u64 {
     let gi = bytes / (1024 * 1024 * 1024);
     // Round up if there's a remainder.
-    if bytes % (1024 * 1024 * 1024) > 0 {
+    if !bytes.is_multiple_of(1024 * 1024 * 1024) {
         gi + 1
     } else {
         gi

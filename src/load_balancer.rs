@@ -14,21 +14,17 @@ use tracing::{debug, info, warn};
 // ── Algorithm ────────────────────────────────────────────────────────────────
 
 /// Supported load-balancing algorithms.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum LbAlgorithm {
     RoundRobin,
+    #[default]
     LeastConnections,
     WeightedRoundRobin,
     ConsistentHash,
     Random,
 }
 
-impl Default for LbAlgorithm {
-    fn default() -> Self {
-        Self::LeastConnections
-    }
-}
 
 // ── Backend ───────────────────────────────────────────────────────────────────
 

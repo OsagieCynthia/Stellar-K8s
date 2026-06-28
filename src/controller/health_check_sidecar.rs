@@ -10,7 +10,7 @@ pub struct HealthCheckState {
     pub sync_status: Arc<RwLock<SyncStatus>>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct SyncStatus {
     pub is_synced: bool,
     pub ledger_num: u64,
@@ -18,16 +18,6 @@ pub struct SyncStatus {
     pub last_check: i64,
 }
 
-impl Default for SyncStatus {
-    fn default() -> Self {
-        Self {
-            is_synced: false,
-            ledger_num: 0,
-            network_ledger: 0,
-            last_check: 0,
-        }
-    }
-}
 
 #[derive(Serialize)]
 pub struct HealthResponse {

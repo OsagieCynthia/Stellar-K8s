@@ -77,4 +77,3 @@ pub enum UpgradePhase {
     RolledBack,
     Failed,
 }
-

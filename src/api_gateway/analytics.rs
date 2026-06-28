@@ -30,7 +30,9 @@ pub struct RouteStats {
 
 impl RouteStats {
     pub fn mean_latency_ms(&self) -> u64 {
-        self.total_latency_ms.checked_div(self.total_requests).unwrap_or(0)
+        self.total_latency_ms
+            .checked_div(self.total_requests)
+            .unwrap_or(0)
     }
 }
 

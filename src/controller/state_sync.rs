@@ -681,10 +681,7 @@ async fn fetch_local_ledger_state(node: &StellarNode) -> Result<LedgerStateSnaps
 ///
 /// Convention: `"<namespace>/<node-name>"` or just `"<node-name>"` (uses
 /// the same namespace as the local node).
-fn parse_peer_cluster_id(
-    peer_cluster_id: &str,
-    local_node: &StellarNode,
-) -> (String, String) {
+fn parse_peer_cluster_id(peer_cluster_id: &str, local_node: &StellarNode) -> (String, String) {
     if let Some((ns, name)) = peer_cluster_id.split_once('/') {
         (ns.to_string(), name.to_string())
     } else {

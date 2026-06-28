@@ -45,7 +45,6 @@ pub enum CompatibilityMode {
     None,
 }
 
-
 // ── Schema version ────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

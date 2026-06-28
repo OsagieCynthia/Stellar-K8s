@@ -25,7 +25,6 @@ pub enum LbAlgorithm {
     Random,
 }
 
-
 // ── Backend ───────────────────────────────────────────────────────────────────
 
 /// Health status of a backend.

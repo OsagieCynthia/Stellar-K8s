@@ -18,7 +18,6 @@ pub struct SyncStatus {
     pub last_check: i64,
 }
 
-
 #[derive(Serialize)]
 pub struct HealthResponse {
     pub status: String,

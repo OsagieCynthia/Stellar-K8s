@@ -31,7 +31,6 @@ pub enum MessagePriority {
     Low = 3,
 }
 
-
 /// A single message in the queue.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Message {

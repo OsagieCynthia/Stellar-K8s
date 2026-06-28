@@ -97,7 +97,6 @@ pub struct TrafficShapingConfig {
     pub circuit_breaker: CircuitBreakerConfig,
 }
 
-
 #[derive(Debug, Clone)]
 pub struct TrafficRequest {
     pub backend: String,
